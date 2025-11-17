@@ -46,7 +46,9 @@
         :getButtonStyle="getButtonStyle"
         @button-click="selectButton"
         @button-execute="executeButton"
+        @button-delete="deleteButton"
         @swap="handleSwap"
+        @grid-size-change="changeGridSize"
       />
     </div>
   </div>
@@ -87,6 +89,7 @@ const {
   getButton,
   selectButton,
   executeButton,
+  deleteButton,
   addAction,
   removeAction,
   updateActionParameter,
@@ -148,11 +151,23 @@ const updateButtonTextColor = (value: string) => {
 onMounted(() => {
   connectWebSocket()
   loadProfiles()
+  
+  // Add keyboard listener for Delete key
+  window.addEventListener('keydown', handleKeyDown)
 })
 
 onUnmounted(() => {
   cleanup()
+  window.removeEventListener('keydown', handleKeyDown)
 })
+
+// Handle Delete key press
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (event.key === 'Delete' && selectedButton.value !== null) {
+    event.preventDefault()
+    deleteButton(selectedButton.value)
+  }
+}
 
 // Watchers
 watch(selectedProfile, (newProfileId) => {

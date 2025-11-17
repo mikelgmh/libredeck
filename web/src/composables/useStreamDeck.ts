@@ -247,6 +247,36 @@ export function useStreamDeck() {
     try {
       currentProfile.value = await apiRequest(`/profiles/${selectedProfile.value}`)
 
+      console.log('📂 Loaded profile:', currentProfile.value)
+      console.log('📦 Profile data (raw):', currentProfile.value.data)
+
+      // Parse data if it's a string
+      let profileData = currentProfile.value.data
+      if (typeof profileData === 'string') {
+        try {
+          profileData = JSON.parse(profileData)
+          console.log('📦 Profile data (parsed):', profileData)
+        } catch (e) {
+          console.error('Failed to parse profile data:', e)
+          profileData = {}
+        }
+      }
+
+      // Restore grid size from profile data
+      if (profileData?.gridCols) {
+        gridCols.value = profileData.gridCols
+        console.log('📐 Restored gridCols from profile:', gridCols.value)
+      } else {
+        console.log('⚠️ No gridCols found in profile data, using default:', gridCols.value)
+      }
+
+      if (profileData?.gridRows) {
+        gridRows.value = profileData.gridRows
+        console.log('📐 Restored gridRows from profile:', gridRows.value)
+      } else {
+        console.log('⚠️ No gridRows found in profile data, using default:', gridRows.value)
+      }
+
       const pages = await apiRequest(`/pages?profileId=${selectedProfile.value}`)
       if (pages.length > 0) {
         currentPage.value = pages[0]
@@ -365,6 +395,34 @@ export function useStreamDeck() {
         const index = executingButtons.value.indexOf(position)
         if (index > -1) executingButtons.value.splice(index, 1)
       }, 500)
+    }
+  }
+
+  const deleteButton = async (position: number) => {
+    const button = getButton(position)
+    if (!button) {
+      console.log('No button to delete at position:', position)
+      return
+    }
+
+    try {
+      console.log('🗑️ Deleting button at position:', position, 'Button ID:', button.id)
+
+      await apiRequest(`/buttons/${button.id}`, {
+        method: 'DELETE'
+      })
+
+      console.log('✅ Button deleted successfully')
+
+      // If this was the selected button, deselect it
+      if (selectedButton.value === position) {
+        selectedButton.value = null
+      }
+
+      // Reload buttons to update UI
+      await loadButtons()
+    } catch (error) {
+      console.error('❌ Failed to delete button:', error)
     }
   }
 
@@ -531,11 +589,14 @@ export function useStreamDeck() {
   }
 
   // Grid management functions
-  const changeGridSize = (deltaX: number, deltaY: number) => {
+  const changeGridSize = async (deltaX: number, deltaY: number) => {
+    let changed = false
+
     if (deltaX !== 0) {
       const newCols = gridCols.value + deltaX
       if (newCols >= 3 && newCols <= 8) {
         gridCols.value = newCols
+        changed = true
       }
     }
 
@@ -543,6 +604,57 @@ export function useStreamDeck() {
       const newRows = gridRows.value + deltaY
       if (newRows >= 2 && newRows <= 6) {
         gridRows.value = newRows
+        changed = true
+      }
+    }
+
+    // Save grid size to profile data only if changed
+    if (changed && currentProfile.value) {
+      try {
+        // Create a simple data object with grid size
+        const updatedData = {
+          gridCols: gridCols.value,
+          gridRows: gridRows.value
+        }
+
+        console.log('💾 Saving grid size:', updatedData)
+
+        const response = await apiRequest(`/profiles/${currentProfile.value.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: currentProfile.value.name,
+            data: updatedData
+          })
+        })
+
+        console.log('✅ Grid size saved successfully:', response)
+
+        // Update local profile data reference
+        // Parse current data if it's a string
+        let currentData = currentProfile.value.data
+        if (typeof currentData === 'string') {
+          try {
+            currentData = JSON.parse(currentData)
+          } catch (e) {
+            currentData = {}
+          }
+        }
+
+        // Update or initialize data object
+        if (!currentData || typeof currentData !== 'object') {
+          currentProfile.value.data = updatedData
+        } else {
+          currentProfile.value.data = {
+            ...currentData,
+            gridCols: gridCols.value,
+            gridRows: gridRows.value
+          }
+        }
+
+        console.log('📦 Updated local profile data:', currentProfile.value.data)
+
+      } catch (error) {
+        console.error('❌ Failed to save grid size:', error)
       }
     }
   }
@@ -684,6 +796,7 @@ export function useStreamDeck() {
     getButton,
     selectButton,
     executeButton,
+    deleteButton,
     saveButtonConfig,
     addAction,
     removeAction,

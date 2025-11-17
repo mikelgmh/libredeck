@@ -1,5 +1,51 @@
 <template>
-  <div class="flex-1 p-8 flex items-center justify-center">
+  <div class="flex-1 p-8 flex flex-col items-center justify-center gap-4">
+    <!-- Grid Size Controls -->
+    <div class="flex items-center gap-3">
+      <span class="text-sm font-medium text-base-content/70">Tamaño de cuadrícula:</span>
+      
+      <div class="flex items-center gap-2">
+        <button 
+          @click="$emit('grid-size-change', -1, 0)" 
+          class="btn btn-ghost btn-xs btn-square"
+          :disabled="gridCols <= 3"
+          title="Reducir columnas"
+        >
+          <Minus :size="14" />
+        </button>
+        <span class="text-sm font-mono min-w-[3rem] text-center">{{ gridCols }}×{{ gridRows }}</span>
+        <button 
+          @click="$emit('grid-size-change', 1, 0)" 
+          class="btn btn-ghost btn-xs btn-square"
+          :disabled="gridCols >= 8"
+          title="Aumentar columnas"
+        >
+          <Plus :size="14" />
+        </button>
+      </div>
+      
+      <div class="divider divider-horizontal mx-0"></div>
+      
+      <div class="flex items-center gap-2">
+        <button 
+          @click="$emit('grid-size-change', 0, -1)" 
+          class="btn btn-ghost btn-xs btn-square"
+          :disabled="gridRows <= 2"
+          title="Reducir filas"
+        >
+          <Minus :size="14" />
+        </button>
+        <button 
+          @click="$emit('grid-size-change', 0, 1)" 
+          class="btn btn-ghost btn-xs btn-square"
+          :disabled="gridRows >= 6"
+          title="Aumentar filas"
+        >
+          <Plus :size="14" />
+        </button>
+      </div>
+    </div>
+
     <div
       ref="container"
       data-swapy-container
@@ -14,6 +60,7 @@
         :key="`slot-${index - 1}`"
         :data-swapy-slot="`slot-${index - 1}`"
         class="slot-container w-20 h-20 flex items-center justify-center"
+        @contextmenu.prevent.stop="showContextMenu($event, index - 1)"
       >
         <div 
           :data-swapy-item="getButton(index - 1) ? `item-${getButton(index - 1)!.id}` : `empty-${index - 1}`"
@@ -126,13 +173,42 @@
         </div>
       </div>
     </div>
+    
+    <!-- Context Menu -->
+    <div
+      v-if="contextMenu.show"
+      ref="contextMenuRef"
+      class="fixed bg-base-100 rounded-lg shadow-xl border border-base-300 py-1 z-[9999]"
+      :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
+      @click.stop
+    >
+      <button
+        v-if="getButton(contextMenu.position)"
+        @click="handleExecute"
+        class="w-full px-4 py-2 text-left hover:bg-base-200 flex items-center gap-2 text-sm"
+      >
+        <Play :size="16" />
+        Pulsar
+      </button>
+      <button
+        v-if="getButton(contextMenu.position)"
+        @click="handleDelete"
+        class="w-full px-4 py-2 text-left hover:bg-base-200 flex items-center gap-2 text-sm text-error"
+      >
+        <Trash2 :size="16" />
+        Eliminar
+      </button>
+      <div v-if="!getButton(contextMenu.position)" class="px-4 py-2 text-sm text-base-content/50">
+        Botón vacío
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { createSwapy, type Swapy } from 'swapy'
-import { Plus } from 'lucide-vue-next'
+import { Plus, Play, Trash2, Minus } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import type { ButtonData, ButtonEntity } from '../types/streamdeck'
 
@@ -150,7 +226,9 @@ interface Props {
 interface Emits {
   (e: 'button-click', position: number): void
   (e: 'button-execute', position: number): void
+  (e: 'button-delete', position: number): void
   (e: 'swap', event: any): void
+  (e: 'grid-size-change', deltaX: number, deltaY: number): void
 }
 
 const props = defineProps<Props>()
@@ -159,11 +237,63 @@ const emit = defineEmits<Emits>()
 // Swapy instance
 const container = ref<HTMLElement | null>(null)
 const swapy = ref<Swapy | null>(null)
+const contextMenuRef = ref<HTMLElement | null>(null)
+
+// Context menu state
+const contextMenu = ref({
+  show: false,
+  x: 0,
+  y: 0,
+  position: -1
+})
 
 // Get Lucide icon component by name
 const getLucideIcon = (iconName: string) => {
   const icons = LucideIcons as Record<string, any>
   return icons[iconName] || Plus
+}
+
+// Show context menu
+const showContextMenu = (event: MouseEvent, position: number) => {
+  event.preventDefault()
+  
+  contextMenu.value = {
+    show: true,
+    x: event.clientX,
+    y: event.clientY,
+    position
+  }
+}
+
+// Hide context menu
+const hideContextMenu = () => {
+  contextMenu.value.show = false
+}
+
+// Handle execute button
+const handleExecute = () => {
+  emit('button-execute', contextMenu.value.position)
+  hideContextMenu()
+}
+
+// Handle delete button
+const handleDelete = () => {
+  emit('button-delete', contextMenu.value.position)
+  hideContextMenu()
+}
+
+// Close context menu on click outside
+const handleClickOutside = (event: MouseEvent) => {
+  if (contextMenu.value.show && contextMenuRef.value && !contextMenuRef.value.contains(event.target as Node)) {
+    hideContextMenu()
+  }
+}
+
+// Close context menu on Escape key
+const handleEscapeKey = (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && contextMenu.value.show) {
+    hideContextMenu()
+  }
 }
 
 // Initialize Swapy
@@ -180,10 +310,14 @@ const initializeSwapy = () => {
 
 onMounted(() => {
   initializeSwapy()
+  document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleEscapeKey)
 })
 
 onUnmounted(() => {
   swapy.value?.destroy()
+  document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleEscapeKey)
 })
 </script>
 
