@@ -354,7 +354,10 @@ export function useStreamDeck() {
   
   // Button configuration functions
   const saveButtonConfig = async () => {
-    if (selectedButton.value === null || !currentPage.value) return
+    if (selectedButton.value === null || !currentPage.value) {
+      isSaving.value = false
+      return
+    }
     
     const position = selectedButton.value
     const existingButton = getButton(position)
@@ -364,10 +367,13 @@ export function useStreamDeck() {
                       buttonConfig.value.emoji.trim() || 
                       buttonConfig.value.actions.length > 0
     
+    console.log('💾 Saving button at position:', position, 'Existing:', !!existingButton, 'HasContent:', hasContent)
+    
     try {
       if (existingButton) {
         if (hasContent) {
           // Update existing button
+          console.log('📝 Updating button', existingButton.id, 'with data:', buttonConfig.value)
           await apiRequest(`/buttons/${existingButton.id}`, {
             method: 'PUT',
             body: JSON.stringify({ data: buttonConfig.value })
@@ -375,11 +381,13 @@ export function useStreamDeck() {
           
           // Update local data
           existingButton.data = { ...buttonConfig.value }
+          console.log('✅ Button updated successfully')
           
           // Force reactivity update
           await nextTick()
         } else {
           // Delete button if no content
+          console.log('🗑️ Deleting button', existingButton.id, 'because no content')
           await apiRequest(`/buttons/${existingButton.id}`, {
             method: 'DELETE'
           })
@@ -389,9 +397,11 @@ export function useStreamDeck() {
           if (index > -1) {
             currentButtons.value.splice(index, 1)
           }
+          console.log('✅ Button deleted successfully')
         }
       } else if (hasContent) {
         // Create new button only if there's content
+        console.log('➕ Creating new button at position', position, 'with data:', buttonConfig.value)
         const newButton = await apiRequest('/buttons', {
           method: 'POST',
           body: JSON.stringify({
@@ -402,13 +412,13 @@ export function useStreamDeck() {
         })
         
         currentButtons.value.push(newButton)
-        console.log('Button created:', newButton.id, 'Data:', newButton)
+        console.log('✅ Button created:', newButton.id, 'Data:', newButton)
       } else {
         // No content and no existing button - nothing to do
-        console.log('No content to save for empty button at position:', position)
+        console.log('⏭️ No content to save for empty button at position:', position)
       }
     } catch (error) {
-      console.error('Failed to save button:', error)
+      console.error('❌ Failed to save button:', error)
     } finally {
       isSaving.value = false
     }
@@ -605,9 +615,11 @@ export function useStreamDeck() {
     if (saveTimeout.value) clearTimeout(saveTimeout.value)
     if (isChangingButton.value || isSwapping.value) return // Don't save while changing buttons or swapping
     
+    isSaving.value = true
     saveTimeout.value = setTimeout(() => {
+      console.log('💾 Auto-saving button config...')
       saveButtonConfig()
-    }, 300)
+    }, 800) // 800ms para dar tiempo a escribir pero sentir rapidez
   }
   
   // Cleanup function

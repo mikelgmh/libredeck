@@ -107,20 +107,21 @@ const handleProfileCreate = async (name: string) => {
   await createProfile(name)
 }
 
+// Estas funciones actualizan buttonConfig directamente, lo que dispara el watch
 const updateButtonLabel = (value: string) => {
-  buttonConfig.value.label = value
+  buttonConfig.value = { ...buttonConfig.value, label: value }
 }
 
 const updateButtonEmoji = (value: string) => {
-  buttonConfig.value.emoji = value
+  buttonConfig.value = { ...buttonConfig.value, emoji: value }
 }
 
 const updateButtonBackgroundColor = (value: string) => {
-  buttonConfig.value.backgroundColor = value
+  buttonConfig.value = { ...buttonConfig.value, backgroundColor: value }
 }
 
 const updateButtonTextColor = (value: string) => {
-  buttonConfig.value.textColor = value
+  buttonConfig.value = { ...buttonConfig.value, textColor: value }
 }
 
 // Lifecycle
@@ -161,14 +162,33 @@ watch(selectedButton, (newVal, oldVal) => {
 
 // Watch buttonConfig changes for auto-save
 watch(buttonConfig, (newConfig, oldConfig) => {
-  if (selectedButton.value !== null && !isChangingButton.value && !isSaving.value && oldConfig) {
-    // Only save if there are actual meaningful changes
+  // Don't save if we're just changing buttons, already saving, or swapping
+  if (isChangingButton.value || isSaving.value) {
+    console.log('⏸️ Skipping save: isChangingButton:', isChangingButton.value, 'isSaving:', isSaving.value)
+    return
+  }
+  
+  // Only save if a button is selected
+  if (selectedButton.value === null) {
+    console.log('⏸️ Skipping save: no button selected')
+    return
+  }
+  
+  // Check if there are actual changes (but allow first save after selection)
+  if (oldConfig) {
     const hasChanges = JSON.stringify(newConfig) !== JSON.stringify(oldConfig)
-    if (hasChanges) {
-      console.log('ButtonConfig changed, saving...', newConfig)
-      debouncedSave()
+    if (!hasChanges) {
+      console.log('⏸️ Skipping save: no changes detected')
+      return
     }
   }
+  
+  console.log('🔄 ButtonConfig changed, scheduling save...', {
+    label: newConfig.label,
+    emoji: newConfig.emoji,
+    actionsCount: newConfig.actions.length
+  })
+  debouncedSave()
 }, { deep: true, flush: 'post' })
 </script>
 

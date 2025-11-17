@@ -41,7 +41,7 @@
             @update:textColor="$emit('update-button-text-color', $event)"
             @add-action="$emit('add-action', $event)"
             @remove-action="$emit('remove-action', $event)"
-            @update-action-parameter="$emit('update-action-parameter', $event)"
+            @update-action-parameter="(...args) => $emit('update-action-parameter', args)"
           />
         </div>
       </div>
