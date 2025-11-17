@@ -23,11 +23,14 @@ export interface ButtonEntity {
 
 export interface ButtonData {
     label: string
+    textTop?: string
+    textBottom?: string
+    fontSize?: number
     emoji: string
+    icon?: string
     backgroundColor: string
     textColor: string
     actions: ActionConfig[]
-    icon?: string
     backgroundImage?: string
 }
 

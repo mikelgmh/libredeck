@@ -23,7 +23,11 @@ export function useStreamDeck() {
   // Button Config
   const buttonConfig = ref<ButtonData>({
     label: '',
+    textTop: '',
+    textBottom: '',
+    fontSize: 14,
     emoji: '',
+    icon: '',
     backgroundColor: '#374151',
     textColor: '#f1f5f9',
     actions: []
@@ -59,6 +63,10 @@ export function useStreamDeck() {
     // Otherwise return saved data or empty object
     return button?.data || {
       label: '',
+      textTop: '',
+      textBottom: '',
+      fontSize: 14,
+      icon: '',
       emoji: '',
       backgroundColor: '#374151',
       textColor: '#f1f5f9',
@@ -305,6 +313,10 @@ export function useStreamDeck() {
     if (button) {
       buttonConfig.value = {
         label: button.data?.label || '',
+        textTop: button.data?.textTop || '',
+        textBottom: button.data?.textBottom || '',
+        fontSize: button.data?.fontSize || 14,
+        icon: button.data?.icon || '',
         emoji: button.data?.emoji || '',
         backgroundColor: button.data?.backgroundColor || '#374151',
         textColor: button.data?.textColor || '#f1f5f9',
@@ -313,6 +325,10 @@ export function useStreamDeck() {
     } else {
       buttonConfig.value = {
         label: '',
+        textTop: '',
+        textBottom: '',
+        fontSize: 14,
+        icon: '',
         emoji: '',
         backgroundColor: '#374151',
         textColor: '#f1f5f9',

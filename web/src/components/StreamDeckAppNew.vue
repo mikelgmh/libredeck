@@ -12,6 +12,10 @@
       @profile-changed="handleProfileChange"
       @profile-created="handleProfileCreate"
       @update-button-label="updateButtonLabel"
+      @update-button-text-top="updateButtonTextTop"
+      @update-button-text-bottom="updateButtonTextBottom"
+      @update-button-font-size="updateButtonFontSize"
+      @update-button-icon="updateButtonIcon"
       @update-button-emoji="updateButtonEmoji"
       @update-button-background-color="updateButtonBackgroundColor"
       @update-button-text-color="updateButtonTextColor"
@@ -112,6 +116,22 @@ const updateButtonLabel = (value: string) => {
   buttonConfig.value = { ...buttonConfig.value, label: value }
 }
 
+const updateButtonTextTop = (value: string) => {
+  buttonConfig.value = { ...buttonConfig.value, textTop: value }
+}
+
+const updateButtonTextBottom = (value: string) => {
+  buttonConfig.value = { ...buttonConfig.value, textBottom: value }
+}
+
+const updateButtonFontSize = (value: number) => {
+  buttonConfig.value = { ...buttonConfig.value, fontSize: value }
+}
+
+const updateButtonIcon = (value: string) => {
+  buttonConfig.value = { ...buttonConfig.value, icon: value }
+}
+
 const updateButtonEmoji = (value: string) => {
   buttonConfig.value = { ...buttonConfig.value, emoji: value }
 }
@@ -147,6 +167,10 @@ watch(selectedButton, (newVal, oldVal) => {
   if (newVal === null) {
     buttonConfig.value = {
       label: '',
+      textTop: '',
+      textBottom: '',
+      fontSize: 14,
+      icon: '',
       emoji: '',
       backgroundColor: '#374151',
       textColor: '#f1f5f9',

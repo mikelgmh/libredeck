@@ -34,17 +34,34 @@
           >
             <!-- Content for buttons with data -->
             <template v-if="getButton(index - 1)">
-              <!-- Icon/Emoji -->
-              <div class="text-2xl">
-                <span v-if="getButtonData(index - 1)?.emoji">{{ getButtonData(index - 1).emoji }}</span>
+              <!-- Top Text -->
+              <div 
+                v-if="getButtonData(index - 1)?.textTop"
+                class="text-xs font-medium text-center leading-tight w-full"
+                :style="{ fontSize: (getButtonData(index - 1)?.fontSize || 14) + 'px' }"
+              >
+                {{ getButtonData(index - 1).textTop }}
+              </div>
+              
+              <!-- Icon (lucide) or Emoji -->
+              <div class="text-2xl flex items-center justify-center">
+                <component 
+                  v-if="getButtonData(index - 1)?.icon" 
+                  :is="getLucideIcon(getButtonData(index - 1)?.icon)"
+                  :size="32"
+                />
+                <span v-else-if="getButtonData(index - 1)?.emoji">{{ getButtonData(index - 1).emoji }}</span>
                 <span v-else-if="selectedButton === (index - 1)" class="opacity-50">⚡</span>
                 <span v-else>⚡</span>
               </div>
               
-              <!-- Label -->
-              <div class="text-xs font-medium text-center leading-tight truncate w-full">
-                <span v-if="getButtonData(index - 1)?.label">{{ getButtonData(index - 1).label }}</span>
-                <span v-else-if="selectedButton === (index - 1)" class="opacity-50 text-xs">Escribe un texto...</span>
+              <!-- Bottom Text -->
+              <div 
+                v-if="getButtonData(index - 1)?.textBottom"
+                class="text-xs font-medium text-center leading-tight w-full"
+                :style="{ fontSize: (getButtonData(index - 1)?.fontSize || 14) + 'px' }"
+              >
+                {{ getButtonData(index - 1).textBottom }}
               </div>
               
               <!-- Action Count -->
@@ -59,15 +76,36 @@
             <!-- Content for empty slots -->
             <template v-else>
               <!-- Show live preview if this slot is selected and has content -->
-              <template v-if="selectedButton === (index - 1) && (buttonConfig.label || buttonConfig.emoji || buttonConfig.actions.length)">
-                <div class="text-2xl">
-                  <span v-if="buttonConfig.emoji">{{ buttonConfig.emoji }}</span>
+              <template v-if="selectedButton === (index - 1) && (buttonConfig.textTop || buttonConfig.textBottom || buttonConfig.label || buttonConfig.icon || buttonConfig.emoji || buttonConfig.actions.length)">
+                <!-- Top Text -->
+                <div 
+                  v-if="buttonConfig.textTop"
+                  class="text-xs font-medium text-center leading-tight w-full"
+                  :style="{ fontSize: (buttonConfig.fontSize || 14) + 'px' }"
+                >
+                  {{ buttonConfig.textTop }}
+                </div>
+                
+                <!-- Icon or Emoji -->
+                <div class="text-2xl flex items-center justify-center">
+                  <component 
+                    v-if="buttonConfig.icon" 
+                    :is="getLucideIcon(buttonConfig.icon)"
+                    :size="32"
+                  />
+                  <span v-else-if="buttonConfig.emoji">{{ buttonConfig.emoji }}</span>
                   <span v-else class="opacity-50">⚡</span>
                 </div>
-                <div class="text-xs font-medium text-center leading-tight truncate w-full">
-                  <span v-if="buttonConfig.label">{{ buttonConfig.label }}</span>
-                  <span v-else class="opacity-50">Escribe un texto...</span>
+                
+                <!-- Bottom Text -->
+                <div 
+                  v-if="buttonConfig.textBottom"
+                  class="text-xs font-medium text-center leading-tight w-full"
+                  :style="{ fontSize: (buttonConfig.fontSize || 14) + 'px' }"
+                >
+                  {{ buttonConfig.textBottom }}
                 </div>
+                
                 <div 
                   v-if="buttonConfig.actions?.length" 
                   class="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-content rounded-full text-xs flex items-center justify-center font-bold"
@@ -95,6 +133,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { createSwapy, type Swapy } from 'swapy'
 import { Plus } from 'lucide-vue-next'
+import * as LucideIcons from 'lucide-vue-next'
 import type { ButtonData, ButtonEntity } from '../types/streamdeck'
 
 interface Props {
@@ -120,6 +159,12 @@ const emit = defineEmits<Emits>()
 // Swapy instance
 const container = ref<HTMLElement | null>(null)
 const swapy = ref<Swapy | null>(null)
+
+// Get Lucide icon component by name
+const getLucideIcon = (iconName: string) => {
+  const icons = LucideIcons as Record<string, any>
+  return icons[iconName] || Plus
+}
 
 // Initialize Swapy
 const initializeSwapy = () => {

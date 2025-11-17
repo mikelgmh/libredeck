@@ -2,30 +2,52 @@
   <div class="space-y-4">
     <!-- Basic Settings -->
     <div class="space-y-4">
-      <!-- Label -->
+      <!-- Icon Picker -->
+      <IconPicker
+        :model-value="buttonConfig.icon || ''"
+        @update:model-value="updateIcon"
+      />
+
+      <!-- Text Top -->
       <label class="form-control w-full">
         <div class="label">
-          <span class="label-text">Texto del Botón</span>
+          <span class="label-text">Texto Superior</span>
         </div>
         <input 
-          :value="buttonConfig.label" 
-          @input="updateLabel"
+          :value="buttonConfig.textTop || ''" 
+          @input="updateTextTop"
           type="text" 
-          placeholder="Ej: Play Music"
+          placeholder="Texto superior (opcional)"
           class="input input-bordered input-sm w-full" 
         />
       </label>
 
-      <!-- Icon -->
+      <!-- Text Bottom -->
       <label class="form-control w-full">
         <div class="label">
-          <span class="label-text">Emoji/Icono</span>
+          <span class="label-text">Texto Inferior</span>
         </div>
         <input 
-          :value="buttonConfig.emoji" 
-          @input="updateEmoji"
+          :value="buttonConfig.textBottom || ''" 
+          @input="updateTextBottom"
           type="text" 
-          placeholder="🎵 o URL de imagen"
+          placeholder="Texto inferior (opcional)"
+          class="input input-bordered input-sm w-full" 
+        />
+      </label>
+
+      <!-- Font Size -->
+      <label class="form-control w-full">
+        <div class="label">
+          <span class="label-text">Tamaño de Texto (px)</span>
+        </div>
+        <input 
+          :value="buttonConfig.fontSize || 14" 
+          @input="updateFontSize"
+          type="number"
+          min="8"
+          max="48"
+          placeholder="14"
           class="input input-bordered input-sm w-full" 
         />
       </label>
@@ -91,6 +113,7 @@
 <script setup lang="ts">
 import { Plus, Terminal, Globe, Keyboard, Volume2 } from 'lucide-vue-next'
 import ActionEditor from './ActionEditor.vue'
+import IconPicker from './IconPicker.vue'
 import type { ButtonData } from '../types/streamdeck'
 
 interface Props {
@@ -99,6 +122,10 @@ interface Props {
 
 interface Emits {
   (e: 'update:label', value: string): void
+  (e: 'update:textTop', value: string): void
+  (e: 'update:textBottom', value: string): void
+  (e: 'update:fontSize', value: number): void
+  (e: 'update:icon', value: string): void
   (e: 'update:emoji', value: string): void
   (e: 'update:backgroundColor', value: string): void
   (e: 'update:textColor', value: string): void
@@ -113,6 +140,25 @@ const emit = defineEmits<Emits>()
 const updateLabel = (event: Event) => {
   const target = event.target as HTMLInputElement
   emit('update:label', target.value)
+}
+
+const updateTextTop = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  emit('update:textTop', target.value)
+}
+
+const updateTextBottom = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  emit('update:textBottom', target.value)
+}
+
+const updateFontSize = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  emit('update:fontSize', parseInt(target.value) || 14)
+}
+
+const updateIcon = (value: string) => {
+  emit('update:icon', value)
 }
 
 const updateEmoji = (event: Event) => {

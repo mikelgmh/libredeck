@@ -36,6 +36,10 @@
           <ButtonEditor
             :buttonConfig="buttonConfig"
             @update:label="$emit('update-button-label', $event)"
+            @update:textTop="$emit('update-button-text-top', $event)"
+            @update:textBottom="$emit('update-button-text-bottom', $event)"
+            @update:fontSize="$emit('update-button-font-size', $event)"
+            @update:icon="$emit('update-button-icon', $event)"
             @update:emoji="$emit('update-button-emoji', $event)"
             @update:backgroundColor="$emit('update-button-background-color', $event)"
             @update:textColor="$emit('update-button-text-color', $event)"
@@ -75,6 +79,10 @@ interface Emits {
   (e: 'profile-changed', profileId: string): void
   (e: 'profile-created', name: string): Promise<void>
   (e: 'update-button-label', value: string): void
+  (e: 'update-button-text-top', value: string): void
+  (e: 'update-button-text-bottom', value: string): void
+  (e: 'update-button-font-size', value: number): void
+  (e: 'update-button-icon', value: string): void
   (e: 'update-button-emoji', value: string): void
   (e: 'update-button-background-color', value: string): void
   (e: 'update-button-text-color', value: string): void
