@@ -1,6 +1,14 @@
 import { v4 as uuidv4 } from 'uuid';
 import { PluginLoader } from './plugin-loader';
 import { DatabaseService } from './db';
+import {
+  MultimediaPlugin,
+  ShellPlugin,
+  HttpPlugin,
+  UtilityPlugin,
+  HotkeyPlugin,
+  type NativePlugin
+} from './plugins';
 
 export interface ActionDescriptor {
   id?: string;
@@ -33,21 +41,59 @@ export class ActionRunner {
   private runningActions: Map<string, Promise<ActionResult>> = new Map();
   private actionHandlers: Map<string, Function> = new Map();
   private lastExecution: Map<string, number> = new Map();
+  private nativePlugins: NativePlugin[] = [];
 
   constructor(pluginLoader: PluginLoader) {
     this.pluginLoader = pluginLoader;
     this.db = new DatabaseService();
+    this.loadNativePlugins();
     this.setupBuiltInActions();
   }
 
+  private loadNativePlugins() {
+    console.log('🔌 Loading native plugins...');
+
+    // Create plugin context for logging
+    const pluginContext = {
+      log: (level: string, message: string, meta?: any) => {
+        this.db.addLog({ level, message, meta, ts: Date.now() });
+      }
+    };
+
+    // Load all native plugins
+    const multimediaPlugin = new MultimediaPlugin(pluginContext);
+    const shellPlugin = new ShellPlugin(pluginContext);
+    const httpPlugin = new HttpPlugin(pluginContext);
+    const utilityPlugin = new UtilityPlugin(pluginContext);
+    const hotkeyPlugin = new HotkeyPlugin(pluginContext);
+
+    // Set action executor for utility plugin (for sequence actions)
+    utilityPlugin.setActionExecutor(this.executeAction.bind(this));
+
+    this.nativePlugins.push(
+      multimediaPlugin,
+      shellPlugin,
+      httpPlugin,
+      utilityPlugin,
+      hotkeyPlugin
+    );
+
+    // Register all action handlers from native plugins
+    for (const plugin of this.nativePlugins) {
+      const manifest = plugin.getManifest();
+      const handlers = plugin.getActionHandlers();
+
+      for (const [actionType, handler] of handlers.entries()) {
+        this.registerAction(actionType, handler);
+      }
+
+      console.log(`✓ Loaded native plugin: ${manifest.name} v${manifest.version}`);
+    }
+  }
+
   private setupBuiltInActions() {
-    // Built-in action types
-    this.registerAction('shell', this.executeShellAction.bind(this));
-    this.registerAction('http', this.executeHttpAction.bind(this));
-    this.registerAction('delay', this.executeDelayAction.bind(this));
-    this.registerAction('sequence', this.executeSequenceAction.bind(this));
-    this.registerAction('hotkey', this.executeHotkeyAction.bind(this));
-    this.registerAction('multimedia', this.executeMultimediaAction.bind(this));
+    // All actions are now handled by native plugins
+    // This method is kept for future non-plugin actions if needed
   }
 
   public registerAction(actionType: string, handler: Function): void {
@@ -102,7 +148,7 @@ export class ActionRunner {
       );
 
       const duration = Date.now() - startTime;
-      
+
       // Update last execution time
       this.lastExecution.set(actionId, startTime);
 
@@ -145,13 +191,13 @@ export class ActionRunner {
     context: ActionContext
   ): Promise<ActionResult> {
     const handler = this.actionHandlers.get(action.type);
-    
+
     if (!handler) {
       throw new Error(`Unknown action type: ${action.type}`);
     }
 
     const result = await handler(action.parameters || {}, context);
-    
+
     return {
       success: true,
       result,
@@ -173,119 +219,20 @@ export class ActionRunner {
   private isOnCooldown(actionId: string, cooldownMs: number): boolean {
     const lastExecution = this.lastExecution.get(actionId);
     if (!lastExecution) return false;
-    
+
     return (Date.now() - lastExecution) < cooldownMs;
   }
 
   // Built-in action implementations
-  
-  private async executeShellAction(params: any, context: ActionContext): Promise<any> {
-    const { command, args = [], cwd } = params;
-    
-    if (!command) {
-      throw new Error('Shell command is required');
-    }
-
-    // Security: Only allow whitelisted commands in production
-    // TODO: Implement command whitelist based on permissions
-    
-    try {
-      const proc = Bun.spawn({
-        cmd: [command, ...args],
-        cwd: cwd || process.cwd(),
-        stdio: ['ignore', 'pipe', 'pipe']
-      });
-
-      const output = await new Response(proc.stdout).text();
-      const error = await new Response(proc.stderr).text();
-      
-      await proc.exited;
-      
-      return {
-        stdout: output,
-        stderr: error,
-        exitCode: proc.exitCode
-      };
-    } catch (error) {
-      throw new Error(`Shell execution failed: ${error}`);
-    }
-  }
-
-  private async executeHttpAction(params: any, context: ActionContext): Promise<any> {
-    const { url, method = 'GET', headers = {}, body } = params;
-    
-    if (!url) {
-      throw new Error('URL is required for HTTP action');
-    }
-
-    const response = await fetch(url, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined
-    });
-
-    return {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries()),
-      body: await response.text()
-    };
-  }
-
-  private async executeDelayAction(params: any, context: ActionContext): Promise<any> {
-    const { duration = 1000 } = params;
-    
-    await new Promise(resolve => setTimeout(resolve, duration));
-    
-    return { delayed: duration };
-  }
-
-  private async executeSequenceAction(params: any, context: ActionContext): Promise<any> {
-    const { actions = [] } = params;
-    const results = [];
-    
-    for (const subAction of actions) {
-      const result = await this.executeAction(subAction, context);
-      results.push(result);
-      
-      // Stop sequence if any action fails and failFast is true
-      if (!result.success && params.failFast) {
-        break;
-      }
-    }
-    
-    return { results };
-  }
-
-  private async executeHotkeyAction(params: any, context: ActionContext): Promise<any> {
-    // TODO: Implement hotkey simulation using native libraries
-    const { keys, modifiers = [] } = params;
-    
-    console.log(`Hotkey simulation: ${modifiers.join('+')}+${keys}`);
-    
-    return {
-      keys,
-      modifiers,
-      simulated: true
-    };
-  }
-
-  private async executeMultimediaAction(params: any, context: ActionContext): Promise<any> {
-    // TODO: Implement multimedia controls
-    const { action } = params; // play, pause, next, prev, volumeUp, volumeDown, mute
-    
-    console.log(`Multimedia action: ${action}`);
-    
-    return {
-      action,
-      executed: true
-    };
-  }
 
   // Public methods for management
 
   public getRunningActions(): string[] {
     return Array.from(this.runningActions.keys());
+  }
+
+  public getNativePlugins(): NativePlugin[] {
+    return this.nativePlugins;
   }
 
   public async cancelAction(actionId: string): Promise<boolean> {
@@ -296,7 +243,7 @@ export class ActionRunner {
 
     // TODO: Implement action cancellation
     this.runningActions.delete(actionId);
-    
+
     this.db.addLog({
       level: 'info',
       message: `Action cancelled: ${actionId}`,
@@ -313,5 +260,19 @@ export class ActionRunner {
       registered: this.actionHandlers.size,
       lastExecutions: Object.fromEntries(this.lastExecution)
     };
+  }
+
+  public dispose(): void {
+    console.log('🧹 Cleaning up ActionRunner...');
+
+    // Dispose all native plugins
+    for (const plugin of this.nativePlugins) {
+      plugin.dispose();
+    }
+
+    this.nativePlugins = [];
+    this.actionHandlers.clear();
+    this.runningActions.clear();
+    this.lastExecution.clear();
   }
 }
