@@ -1,0 +1,12 @@
+---
+import Layout from '../layouts/Layout.astro';
+import StreamDeckApp from '../components/StreamDeckAppNew.vue';
+import '../styles/global.css';
+import StreamDeckAppNew from '../components/StreamDeckAppNew.vue';
+---
+
+<Layout title="LibreDeck Dashboard">
+  <main class="min-h-screen bg-base-100">
+    <StreamDeckAppNew client:load />
+  </main>
+</Layout>

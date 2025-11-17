@@ -1,0 +1,95 @@
+@import 'tailwindcss';
+@plugin "daisyui" {
+  themes: dark --default;
+}
+
+/* Tema dark personalizado para LibreDeck */
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+  --color-primary: #3b82f6; /* azul StreamDeck */
+  --color-primary-content: oklch(95% 0.01 240);
+  --color-secondary: #64748b;
+  --color-secondary-content: oklch(95% 0.01 240);
+  --color-accent: #06b6d4;
+  --color-accent-content: oklch(15% 0.05 200);
+  --color-neutral: oklch(25% 0.02 240);
+  --color-neutral-content: oklch(95% 0.01 240);
+  --color-base-100: oklch(15% 0.02 240); /* fondo principal oscuro */
+  --color-base-200: oklch(20% 0.02 240);
+  --color-base-300: oklch(25% 0.02 240);
+  --color-base-content: oklch(95% 0.01 240);
+  --color-info: oklch(70% 0.2 220);
+  --color-success: oklch(65% 0.25 140);
+  --color-warning: oklch(80% 0.25 80);
+  --color-error: oklch(65% 0.3 30);
+
+  /* Variables personalizadas para StreamDeck */
+  --color-streamdeck-dark: #1a1a1a;
+  --color-streamdeck-border: #333333;
+  --color-button-executing: oklch(65% 0.25 140);
+}
+
+@layer base {
+  html,
+  body {
+    font-family:
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      Roboto,
+      sans-serif;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  .deck-button {
+    transition: all 0.2s ease;
+    position: relative;
+  }
+
+  .deck-button:hover {
+    transform: scale(1.02);
+  }
+
+  .deck-button.selected {
+    box-shadow: 0 0 0 2px var(--color-primary);
+  }
+
+  .deck-button.executing {
+    animation: pulse-glow 1s infinite;
+  }
+}
+
+@layer utilities {
+  .bg-streamdeck-dark {
+    background-color: var(--color-streamdeck-dark);
+  }
+
+  .border-streamdeck {
+    border-color: var(--color-streamdeck-border);
+  }
+
+  .text-executing {
+    color: var(--color-button-executing);
+  }
+
+  .bg-executing {
+    background-color: var(--color-button-executing);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 10px var(--color-primary);
+  }
+  50% {
+    box-shadow: 0 0 25px var(--color-primary);
+  }
+}

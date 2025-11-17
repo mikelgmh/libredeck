@@ -1,0 +1,8 @@
+# Este directorio contiene assets (iconos, imágenes) subidos por el usuario
+# Los archivos se organizan por hash para evitar colisiones
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.webp

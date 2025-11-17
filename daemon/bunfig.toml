@@ -1,0 +1,8 @@
+[build]
+target = "bun"
+
+[install]
+registry = "https://registry.npmjs.org/"
+
+[run]
+shell = "system"

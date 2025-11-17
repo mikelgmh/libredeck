@@ -1,0 +1,32 @@
+{
+  "id": "com.libredeck.ejemplo",
+  "name": "Plugin de Ejemplo",
+  "version": "1.0.0",
+  "description": "Plugin de demostración para LibreDeck",
+  "author": "LibreDeck Team",
+  "permissions": ["emitEvent"],
+  "actions": [
+    {
+      "id": "saludo",
+      "name": "Decir Hola",
+      "description": "Muestra un saludo personalizado",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "title": "Nombre",
+            "default": "Mundo"
+          },
+          "entusiasmo": {
+            "type": "integer",
+            "title": "Nivel de entusiasmo",
+            "minimum": 1,
+            "maximum": 10,
+            "default": 5
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+# Logs del daemon LibreDeck
+# Los logs se rotan automáticamente para evitar que crezcan demasiado
+*.log
