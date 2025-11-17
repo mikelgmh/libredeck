@@ -35,8 +35,28 @@ export function useStreamDeck() {
 
   // WebSocket
   let ws: WebSocket | null = null
-  const API_BASE = 'http://localhost:3001/api/v1'
-  const WS_URL = 'ws://localhost:3002'
+
+  // Get dynamic base URLs based on current host
+  const getApiBase = () => {
+    if (typeof window !== 'undefined') {
+      const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:'
+      const hostname = window.location.hostname
+      return `${protocol}//${hostname}:3001/api/v1`
+    }
+    return 'http://localhost:3001/api/v1'
+  }
+
+  const getWsUrl = () => {
+    if (typeof window !== 'undefined') {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const hostname = window.location.hostname
+      return `${protocol}//${hostname}:3002`
+    }
+    return 'ws://localhost:3002'
+  }
+
+  const API_BASE = getApiBase()
+  const WS_URL = getWsUrl()
 
   // Storage keys
   const STORAGE_KEYS = {

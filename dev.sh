@@ -85,7 +85,7 @@ start_dev() {
     DAEMON_PID=$!
     
     echo -e "${BLUE}🌐 Iniciando frontend...${NC}"
-    cd web && npm run dev &
+    cd web && npm run dev -- --host &
     WEB_PID=$!
     
     # Esperar a que los servicios estén listos
@@ -93,9 +93,21 @@ start_dev() {
     
     create_sample_profile
     
+    # Obtener IP local
+    if command -v hostname &> /dev/null; then
+        LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+        if [ -z "$LOCAL_IP" ]; then
+            # Fallback para Windows/WSL
+            LOCAL_IP=$(ip addr show | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | cut -d/ -f1 | head -n1)
+        fi
+    fi
+    
     echo -e "${GREEN}🚀 LibreDeck está ejecutándose:${NC}"
     echo -e "   📡 API: ${BLUE}http://localhost:3001${NC}"
-    echo -e "   🌐 Panel: ${BLUE}http://localhost:4321${NC}"
+    echo -e "   🌐 Panel Local: ${BLUE}http://localhost:4321${NC}"
+    if [ -n "$LOCAL_IP" ]; then
+        echo -e "   🌐 Panel Red LAN: ${BLUE}http://${LOCAL_IP}:4321${NC}"
+    fi
     echo -e "   🔌 WebSocket: ${BLUE}ws://localhost:3002${NC}"
     echo ""
     echo -e "${YELLOW}Presiona Ctrl+C para detener${NC}"

@@ -13,7 +13,7 @@ class LibreDeckDaemon {
   private pluginLoader?: PluginLoader;
   private actionRunner?: ActionRunner;
 
-  constructor() {}
+  constructor() { }
 
   private async initializeServices() {
     try {
@@ -24,10 +24,10 @@ class LibreDeckDaemon {
       // Inicializar sistemas
       this.pluginLoader = new PluginLoader();
       this.actionRunner = new ActionRunner(this.pluginLoader);
-      
+
       // Configurar WebSocket
       this.wsManager = new WebSocketManager(WS_PORT);
-      
+
       console.log('✓ Services initialized');
     } catch (error) {
       console.error('Failed to initialize services:', error);
@@ -43,10 +43,20 @@ class LibreDeckDaemon {
       port: PORT,
       fetch: async (req: Request) => {
         const url = new URL(req.url);
-        
-        // Configurar CORS
+
+        // Obtener origin del request
+        const origin = req.headers.get('origin') || '*';
+
+        // Configurar CORS - permitir localhost y cualquier IP local
+        const isLocalOrigin = origin === 'null' ||
+          origin.includes('localhost') ||
+          origin.includes('127.0.0.1') ||
+          origin.match(/https?:\/\/192\.168\.\d+\.\d+(:\d+)?/) ||
+          origin.match(/https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?/) ||
+          origin.match(/https?:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+(:\d+)?/);
+
         const corsHeaders = {
-          'Access-Control-Allow-Origin': 'http://localhost:4321',
+          'Access-Control-Allow-Origin': isLocalOrigin ? origin : 'http://localhost:4321',
           'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type, Authorization',
           'Access-Control-Allow-Credentials': 'true'
@@ -54,7 +64,7 @@ class LibreDeckDaemon {
 
         // Manejar preflight OPTIONS
         if (req.method === 'OPTIONS') {
-          return new Response(null, { 
+          return new Response(null, {
             status: 204,
             headers: corsHeaders
           });
@@ -65,7 +75,7 @@ class LibreDeckDaemon {
           try {
             const assetPath = url.pathname.replace('/assets/', '');
             const file = Bun.file(`../data/assets/${assetPath}`);
-            
+
             if (await file.exists()) {
               return new Response(file, {
                 headers: {
@@ -77,8 +87,8 @@ class LibreDeckDaemon {
           } catch (error) {
             console.error('Error serving asset:', error);
           }
-          
-          return new Response('Asset not found', { 
+
+          return new Response('Asset not found', {
             status: 404,
             headers: corsHeaders
           });
@@ -106,8 +116,8 @@ class LibreDeckDaemon {
 
         // Health check
         if (url.pathname === '/health') {
-          return new Response(JSON.stringify({ 
-            status: 'ok', 
+          return new Response(JSON.stringify({
+            status: 'ok',
             timestamp: Date.now(),
             version: '0.1.0',
             websocket: WS_PORT

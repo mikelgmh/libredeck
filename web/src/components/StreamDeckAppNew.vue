@@ -32,6 +32,7 @@
         :gridCols="gridCols"
         :gridRows="gridRows"
         @grid-size-change="changeGridSize"
+        @show-qr="showQRModal"
       />
 
       <!-- StreamDeck Grid -->
@@ -51,15 +52,26 @@
         @grid-size-change="changeGridSize"
       />
     </div>
+    
+    <!-- QR Modal -->
+    <QRModal ref="qrModal" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useStreamDeck } from '../composables/useStreamDeck'
 import Sidebar from './Sidebar.vue'
 import Toolbar from './Toolbar.vue'
 import StreamDeckGrid from './StreamDeckGrid.vue'
+import QRModal from './QRModal.vue'
+
+// QR Modal ref
+const qrModal = ref<InstanceType<typeof QRModal> | null>(null)
+
+const showQRModal = () => {
+  qrModal.value?.showModal()
+}
 
 // Use the composable
 const {
