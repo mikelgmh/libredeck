@@ -1,6 +1,6 @@
 /**
  * Native Utility Plugin
- * Utility actions like delay, sequence, etc.
+ * Utility actions like delay, etc.
  */
 
 export interface PluginContext {
@@ -19,7 +19,7 @@ export class UtilityPlugin {
     }
 
     public setActionExecutor(executor: (action: any, context: any) => Promise<any>) {
-        // Not used anymore since sequence action was removed
+        // Not used
     }
 
     public getManifest() {
@@ -27,7 +27,7 @@ export class UtilityPlugin {
             id: 'utility',
             name: 'Utility Actions',
             version: '1.0.0',
-            description: 'Utility actions for delays, sequences, and more',
+            description: 'Utility actions for delays and more',
             author: 'LibreDeck',
             permissions: ['system', 'utility'],
             actions: [

@@ -81,61 +81,6 @@ const availableActions = computed(() => {
     icon: any
   }> = []
 
-  // Built-in actions
-  const builtInActions = [
-    {
-      type: 'shell',
-      name: 'Comando Shell',
-      description: 'Ejecutar un comando en la terminal',
-      icon: 'Terminal'
-    },
-    {
-      type: 'http',
-      name: 'Petición HTTP',
-      description: 'Enviar una petición HTTP',
-      icon: 'Globe'
-    },
-    {
-      type: 'hotkey',
-      name: 'Atajo de Teclado',
-      description: 'Simular pulsación de teclas',
-      icon: 'Keyboard'
-    },
-    {
-      type: 'type',
-      name: 'Escribir Texto',
-      description: 'Escribir texto automáticamente',
-      icon: 'Type'
-    },
-    {
-      type: 'multimedia',
-      name: 'Multimedia',
-      description: 'Controlar reproducción multimedia',
-      icon: 'Play'
-    },
-    {
-      type: 'page.page',
-      name: 'Cambiar Página',
-      description: 'Cambiar a una página diferente',
-      icon: 'FileText'
-    },
-    {
-      type: 'open-app',
-      name: 'Abrir Aplicación',
-      description: 'Abrir una aplicación o archivo',
-      icon: 'AppWindow'
-    }
-  ]
-
-  // Add built-in actions
-  builtInActions.forEach(action => {
-    const icon = (LucideIcons as any)[action.icon] || (LucideIcons as any)['Settings']
-    actions.push({
-      ...action,
-      icon
-    })
-  })
-
   // Process each plugin
   props.plugins.forEach((pluginEntry: any) => {
     const [pluginId, pluginData] = pluginEntry

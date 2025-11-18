@@ -666,8 +666,8 @@ export function useStreamDeck() {
         return { action: 'playpause' }
       case 'page':
         return { pageId: '', pageName: '' }
-      case 'delay':
-        return { duration: 1000 }
+      case 'open-url':
+        return { url: '' }
       default:
         return {}
     }

@@ -157,6 +157,18 @@
       </div>
     </div>
 
+    <!-- Open URL Action -->
+    <div v-else-if="getActionBaseType(action.type) === 'open-url'" class="space-y-2" data-swapy-no-drag>
+      <input 
+        :value="action.parameters.url || ''"
+        @input="updateParameter('url', ($event.target as HTMLInputElement).value)"
+        type="url" 
+        placeholder="https://example.com"
+        class="input input-bordered input-xs w-full"
+        data-swapy-no-drag
+      />
+    </div>
+
     <!-- Open App Action -->
     <div v-else-if="getActionBaseType(action.type) === 'open-app'" class="space-y-2" data-swapy-no-drag>
       <div class="flex gap-2">
@@ -231,6 +243,7 @@ const getActionDisplayName = (type: string): string => {
     'multimedia': 'Multimedia',
     'page': 'Cambiar Página',
     'open-app': 'Abrir Aplicación',
+    'open-url': 'Abrir URL',
     'delay': 'Retraso'
   }
   
