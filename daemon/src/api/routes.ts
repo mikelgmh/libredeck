@@ -108,10 +108,17 @@ export async function setupAPIRoutes(
           data: body.data || {}
         };
 
-        db.createPage(page);
-        services.wsManager.broadcastPageUpdate(page.id, page);
+        try {
+          db.createPage(page);
+          services.wsManager.broadcastPageUpdate(page.id, page);
 
-        return jsonResponse(page, 201);
+          return jsonResponse(page, 201);
+        } catch (error) {
+          if (error instanceof Error && error.message.includes('already exists')) {
+            return jsonResponse({ error: error.message }, 409);
+          }
+          throw error;
+        }
       }
     }
 
@@ -124,6 +131,37 @@ export async function setupAPIRoutes(
           return jsonResponse({ error: 'Page not found' }, 404);
         }
         return jsonResponse(page);
+      }
+
+      if (method === 'PUT') {
+        const body = await req.json();
+        const page = db.getPage(pageId);
+        if (!page) {
+          return jsonResponse({ error: 'Page not found' }, 404);
+        }
+
+        try {
+          db.updatePage(pageId, body);
+          const updatedPage = db.getPage(pageId);
+          services.wsManager.broadcast('page.updated', { pageId, page: updatedPage }, 'pages');
+          return jsonResponse(updatedPage);
+        } catch (error) {
+          if (error instanceof Error && error.message.includes('already exists')) {
+            return jsonResponse({ error: error.message }, 409);
+          }
+          throw error;
+        }
+      }
+
+      if (method === 'DELETE') {
+        const page = db.getPage(pageId);
+        if (!page) {
+          return jsonResponse({ error: 'Page not found' }, 404);
+        }
+
+        db.deletePage(pageId);
+        services.wsManager.broadcast('page.deleted', { pageId }, 'pages');
+        return jsonResponse({ success: true });
       }
     }
 

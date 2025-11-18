@@ -303,7 +303,17 @@ export class DatabaseService {
   // Pages
   getPagesByProfile(profileId: string): Page[] {
     const stmt = this.db.prepare('SELECT * FROM pages WHERE profile_id = ? ORDER BY order_idx');
-    return stmt.all(profileId) as Page[];
+    const pages = stmt.all(profileId) as Page[];
+    
+    // Remove duplicates by name, keeping the first occurrence
+    const seenNames = new Set<string>();
+    return pages.filter(page => {
+      if (seenNames.has(page.name)) {
+        return false;
+      }
+      seenNames.add(page.name);
+      return true;
+    });
   }
 
   getPage(id: string): Page | null {
@@ -312,11 +322,70 @@ export class DatabaseService {
   }
 
   createPage(page: Page): void {
+    // Check if a page with the same name already exists in this profile
+    const existingStmt = this.db.prepare('SELECT id FROM pages WHERE profile_id = ? AND name = ?');
+    const existing = existingStmt.get(page.profile_id, page.name);
+    
+    if (existing) {
+      throw new Error(`A page with the name "${page.name}" already exists in this profile`);
+    }
+    
     const stmt = this.db.prepare(`
       INSERT INTO pages (id, profile_id, name, order_idx, is_folder, data) 
       VALUES (?, ?, ?, ?, ?, ?)
     `);
     stmt.run(page.id, page.profile_id, page.name, page.order_idx, page.is_folder || 0, JSON.stringify(page.data));
+  }
+
+  updatePage(id: string, updates: Partial<Pick<Page, 'name' | 'order_idx' | 'is_folder' | 'data'>>): void {
+    const setParts = [];
+    const values = [];
+
+    if (updates.name !== undefined) {
+      // Check if another page with the same name already exists in this profile
+      const existingStmt = this.db.prepare('SELECT profile_id FROM pages WHERE id = ?');
+      const currentPage = existingStmt.get(id) as { profile_id: string } | undefined;
+      
+      if (currentPage) {
+        const duplicateStmt = this.db.prepare('SELECT id FROM pages WHERE profile_id = ? AND name = ? AND id != ?');
+        const duplicate = duplicateStmt.get(currentPage.profile_id, updates.name, id);
+        
+        if (duplicate) {
+          throw new Error(`A page with the name "${updates.name}" already exists in this profile`);
+        }
+      }
+      
+      setParts.push('name = ?');
+      values.push(updates.name);
+    }
+
+    if (updates.order_idx !== undefined) {
+      setParts.push('order_idx = ?');
+      values.push(updates.order_idx);
+    }
+
+    if (updates.is_folder !== undefined) {
+      setParts.push('is_folder = ?');
+      values.push(updates.is_folder);
+    }
+
+    if (updates.data !== undefined) {
+      setParts.push('data = ?');
+      values.push(JSON.stringify(updates.data));
+    }
+
+    if (setParts.length === 0) return;
+
+    const sql = `UPDATE pages SET ${setParts.join(', ')} WHERE id = ?`;
+    values.push(id);
+
+    const stmt = this.db.prepare(sql);
+    stmt.run(...values);
+  }
+
+  deletePage(id: string): void {
+    const stmt = this.db.prepare('DELETE FROM pages WHERE id = ?');
+    stmt.run(id);
   }
 
   // Buttons

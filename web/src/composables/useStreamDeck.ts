@@ -911,7 +911,12 @@ export function useStreamDeck() {
       }
 
       return newPage
-    } catch (error) {
+    } catch (error: any) {
+      // Handle duplicate page name error
+      if (error.message?.includes('409') || error.message?.includes('already exists')) {
+        throw new Error(`Ya existe una página con el nombre "${name}" en este perfil`)
+      }
+      
       console.error('Failed to create page:', error)
       throw error
     }
@@ -942,7 +947,33 @@ export function useStreamDeck() {
       }
 
       console.log('✅ Page deleted successfully')
-    } catch (error) {
+    } catch (error: any) {
+      // If the page doesn't exist on the server (404), just remove it locally
+      if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+        console.log('⚠️ Page not found on server, removing locally')
+        
+        // Remove from local pages anyway
+        const index = currentPages.value.findIndex(p => p.id === pageId)
+        if (index > -1) {
+          currentPages.value.splice(index, 1)
+        }
+
+        // If this was the current page, select another one
+        if (currentPage.value?.id === pageId) {
+          const remainingPages = currentPages.value.filter(p => p.is_folder === 0)
+          if (remainingPages.length > 0) {
+            await selectPage(remainingPages[0].id)
+          } else {
+            currentPage.value = null
+            currentButtons.value = []
+            selectedButton.value = null
+          }
+        }
+        
+        console.log('✅ Page removed locally (was not found on server)')
+        return // Don't throw error for 404
+      }
+      
       console.error('❌ Failed to delete page:', error)
       throw error
     }
@@ -975,7 +1006,13 @@ export function useStreamDeck() {
       }
 
       console.log('✅ Page updated successfully')
-    } catch (error) {
+    } catch (error: any) {
+      // If the page doesn't exist on the server (404), show warning but don't update locally
+      if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+        console.warn('⚠️ Page not found on server, cannot update')
+        return // Don't throw error for 404
+      }
+      
       console.error('❌ Failed to update page:', error)
       throw error
     }

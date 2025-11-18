@@ -228,15 +228,33 @@ const handlePageSelected = async (pageId: string) => {
 }
 
 const handlePageCreated = async (name: string, isFolder: boolean) => {
-  await createPage(name, isFolder)
+  try {
+    await createPage(name, isFolder)
+  } catch (error: any) {
+    console.error('❌ Error creating page:', error)
+    // Show user-friendly error message
+    alert(error.message || 'Error al crear la página. Inténtalo de nuevo.')
+  }
 }
 
 const handlePageDeleted = async (pageId: string) => {
-  await deletePage(pageId)
+  try {
+    await deletePage(pageId)
+  } catch (error) {
+    console.error('❌ Error deleting page:', error)
+    // Show user-friendly error message
+    alert('Error al eliminar la página. Es posible que ya haya sido eliminada.')
+  }
 }
 
 const handlePageRenamed = async (pageId: string, newName: string) => {
-  await updatePage(pageId, { name: newName })
+  try {
+    await updatePage(pageId, { name: newName })
+  } catch (error) {
+    console.error('❌ Error renaming page:', error)
+    // Show user-friendly error message
+    alert('Error al renombrar la página. Inténtalo de nuevo.')
+  }
 }
 
 // Estas funciones actualizan buttonConfig directamente, lo que dispara el watch
