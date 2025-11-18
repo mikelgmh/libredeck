@@ -457,8 +457,11 @@ export function useStreamDeck() {
     const existingButton = getButton(position)
 
     // Only save if there's actual content to save
-    const hasContent = buttonConfig.value.label.trim() ||
-      buttonConfig.value.emoji.trim() ||
+    const hasContent = buttonConfig.value.label?.trim() ||
+      buttonConfig.value.textTop?.trim() ||
+      buttonConfig.value.textBottom?.trim() ||
+      buttonConfig.value.emoji?.trim() ||
+      buttonConfig.value.icon?.trim() ||
       buttonConfig.value.actions.length > 0
 
     console.log('💾 Saving button at position:', position, 'Existing:', !!existingButton, 'HasContent:', hasContent)
@@ -740,16 +743,18 @@ export function useStreamDeck() {
   const handleSwap = async (event: any) => {
     console.log('🔄 Swap event received:', event)
 
-    // Set swapping flag to prevent WebSocket interference
+    // Bloquear recargas de WebSocket durante todo el proceso
     isSwapping.value = true
+    console.log('🔒 isSwapping = true, blocking WebSocket reloads')
 
     try {
-      // Get the new mapping after swap
-      const newMap = event.map
+      // Get the new mapping after swap - onSwapEnd usa slotItemMap
+      const newMap = event.slotItemMap?.asObject || event.newSlotItemMap?.asObject || event.map
 
       // Validate that newMap exists and is an object
       if (!newMap || typeof newMap !== 'object') {
         console.warn('❌ Invalid or missing map in swap event:', event)
+        console.log('🔍 Event structure:', JSON.stringify(event, null, 2))
         return
       }
 
@@ -775,18 +780,12 @@ export function useStreamDeck() {
         }
       }
 
-      // Also check if any empty slots now contain buttons (shouldn't happen in normal drag, but for safety)
-      for (const [slotId, itemId] of Object.entries(newMap)) {
-        if (typeof itemId === 'string' && itemId.startsWith('empty-')) {
-          // This is an empty slot, no action needed
-          continue
-        }
-      }
+      console.log(`📦 Position updates to save: ${positionUpdates.length}`)
 
-      // Execute all position updates
+      // Execute all position updates - SOLO guardar en BD, NO actualizar local
       const updatePromises = positionUpdates.map(async ({ button, newPosition }) => {
         try {
-          // Update in backend first
+          // Update in backend ONLY
           await apiRequest(`/buttons/${button.id}`, {
             method: 'PUT',
             body: JSON.stringify({
@@ -795,13 +794,10 @@ export function useStreamDeck() {
             })
           })
 
-          // Update locally only after successful backend update
-          button.position = newPosition
-
-          console.log(`Button ${button.id} moved to position ${newPosition}`)
+          console.log(`✅ Button ${button.id} saved to position ${newPosition}`)
           return { success: true, buttonId: button.id, newPosition }
         } catch (error) {
-          console.error(`Failed to update button ${button.id} position:`, error)
+          console.error(`❌ Failed to update button ${button.id} position:`, error)
           return { success: false, buttonId: button.id, error }
         }
       })
@@ -814,16 +810,16 @@ export function useStreamDeck() {
       const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)).length
 
       console.log(`✅ Swap completed: ${successful} successful, ${failed} failed position updates`)
-      console.log('📍 Current buttons after swap:', currentButtons.value.map(b => ({ id: b.id, position: b.position })))
 
-      // No need to reload buttons from API - positions are already updated locally
-      // This prevents re-renders and maintains smooth drag & drop experience
+      // NO actualizar nada localmente - dejar que Swapy controle el DOM completamente
+      // Las posiciones están guardadas en BD, y cuando el usuario recargue la página
+      // se cargarán correctamente. Durante la sesión actual, Swapy mantiene el orden visual.
     } finally {
-      // Always clear the swapping flag
+      // Desbloquear después de un pequeño delay
       setTimeout(() => {
         isSwapping.value = false
-        console.log('🔓 Swap operation completed, WebSocket updates re-enabled')
-      }, 1000) // Wait 1 second to ensure all WebSocket messages are processed
+        console.log('🔓 isSwapping = false, swap complete')
+      }, 100)
     }
   }
 

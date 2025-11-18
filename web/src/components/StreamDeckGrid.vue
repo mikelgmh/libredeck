@@ -299,10 +299,13 @@ const handleEscapeKey = (event: KeyboardEvent) => {
 // Initialize Swapy
 const initializeSwapy = () => {
   if (container.value) {
-    swapy.value = createSwapy(container.value)
+    swapy.value = createSwapy(container.value, {
+      animation: 'dynamic'
+    })
 
-    swapy.value.onSwap(event => {
-      console.log('swap', event)
+    // Usar onSwapEnd en lugar de onSwap para emitir solo cuando termina el drag
+    swapy.value.onSwapEnd(event => {
+      console.log('🔄 Swap ended', event)
       emit('swap', event)
     })
   }
