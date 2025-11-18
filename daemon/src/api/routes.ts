@@ -345,8 +345,6 @@ export async function setupAPIRoutes(
     // Windows monitoring endpoints
     if (path === '/api/v1/windows/active') {
       if (method === 'GET') {
-        console.log('🖥️ Getting active window...')
-
         // Obtener la ventana activa actual usando PowerShell
         const powershellScript = `
           try {
@@ -398,8 +396,6 @@ export async function setupAPIRoutes(
           }
         `.trim()
 
-        console.log('⚡ Executing PowerShell script for active window...')
-
         const proc = Bun.spawn({
           cmd: ['powershell.exe', '-Command', powershellScript],
           stdio: ['ignore', 'pipe', 'pipe']
@@ -410,12 +406,6 @@ export async function setupAPIRoutes(
 
         await proc.exited
 
-        console.log('📊 PowerShell exit code:', proc.exitCode)
-        console.log('📝 PowerShell stdout:', output.trim())
-        if (error.trim()) {
-          console.log('❌ PowerShell stderr:', error.trim())
-        }
-
         if (proc.exitCode === 0 && output.trim()) {
           try {
             // Extract JSON from output (PowerShell might output extra lines)
@@ -424,22 +414,17 @@ export async function setupAPIRoutes(
             
             if (jsonLine) {
               const windowInfo = JSON.parse(jsonLine.trim())
-              console.log('✅ Successfully parsed window info:', windowInfo)
               return jsonResponse(windowInfo)
             } else {
-              console.error('❌ No JSON found in PowerShell output')
-              console.error('Raw output:', output.trim())
+              console.error('No JSON found in PowerShell output for active window')
               return jsonResponse({ error: 'No JSON found in PowerShell output' }, 500)
             }
           } catch (parseError) {
-            console.error('❌ Failed to parse window info JSON:', parseError)
-            console.error('Raw output:', output.trim())
+            console.error('Failed to parse window info JSON:', parseError)
             return jsonResponse({ error: 'Failed to parse window info' }, 500)
           }
         } else {
-          console.error('❌ PowerShell execution failed')
-          console.error('Exit code:', proc.exitCode)
-          console.error('Error output:', error.trim())
+          console.error('PowerShell execution failed for active window')
           return jsonResponse({ error: 'Failed to get active window' }, 500)
         }
       }
@@ -566,6 +551,13 @@ export async function setupAPIRoutes(
 
         if (action === 'start' && rules) {
           services.windowWatcher.updateRules(rules)
+          
+          // Connect window watcher events to WebSocket for profile switching
+          services.windowWatcher.on('profile-switch', (profileId: string, window: any) => {
+            console.log('👤 Auto-switching to profile:', profileId, 'due to window:', window.title);
+            services.wsManager?.broadcast('profile.navigate', { profileId }, 'profiles');
+          });
+          
           services.windowWatcher.startWatching(rules)
           return jsonResponse({ status: 'started' })
         } else if (action === 'stop') {

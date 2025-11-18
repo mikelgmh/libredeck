@@ -36,29 +36,22 @@ class WindowWatcher extends EventEmitter {
     // Check every 500ms for window changes
     this.intervalId = setInterval(async () => {
       try {
-        console.log('🔍 Window watcher checking for changes...')
         const currentWindow = await this.getActiveWindow()
-        
-        console.log('📊 Active window result:', currentWindow ? {
-          title: currentWindow.title.substring(0, 50) + (currentWindow.title.length > 50 ? '...' : ''),
-          processName: currentWindow.processName,
-          hwnd: currentWindow.hwnd
-        } : 'null')
 
         if (this.hasWindowChanged(currentWindow)) {
           console.log('🔄 Window changed detected')
           console.log('📋 Previous window:', this.activeWindow ? {
-            title: this.activeWindow.title,
+            title: this.activeWindow.title.substring(0, 50) + (this.activeWindow.title.length > 50 ? '...' : ''),
             processName: this.activeWindow.processName,
-            executablePath: this.activeWindow.executablePath
+            executablePath: this.activeWindow.executablePath?.split('\\').pop() || 'Unknown'
           } : 'None')
           
           this.activeWindow = currentWindow
           
           console.log('🖥️ New active window:', currentWindow ? {
-            title: currentWindow.title,
+            title: currentWindow.title.substring(0, 50) + (currentWindow.title.length > 50 ? '...' : ''),
             processName: currentWindow.processName,
-            executablePath: currentWindow.executablePath,
+            executablePath: currentWindow.executablePath?.split('\\').pop() || 'Unknown',
             hwnd: currentWindow.hwnd
           } : 'None')
           
@@ -72,7 +65,7 @@ class WindowWatcher extends EventEmitter {
             console.log('✅ Found matching rule:', {
               ruleId: matchingRule.id,
               profileId: matchingRule.profileId,
-              executablePath: matchingRule.executablePath,
+              executablePath: matchingRule.executablePath?.split('\\').pop() || 'Unknown',
               processName: matchingRule.processName,
               windowTitleFilter: matchingRule.windowTitleFilter
             })
@@ -80,8 +73,6 @@ class WindowWatcher extends EventEmitter {
           } else {
             console.log('❌ No matching auto-switch rule found for current window')
           }
-        } else {
-          console.log('✋ No window change detected')
         }
       } catch (error) {
         console.error('❌ Error in window watcher:', error)

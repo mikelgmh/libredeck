@@ -53,6 +53,13 @@ class LibreDeckDaemon {
         if (config.enabled && config.rules && config.rules.length > 0) {
           console.log('🔄 Starting auto-profile switching with saved configuration');
           console.log('📋 Loaded rules:', config.rules.length);
+          
+          // Connect window watcher events to WebSocket
+          windowWatcher.on('profile-switch', (profileId: string, window: any) => {
+            console.log('👤 Auto-switching to profile:', profileId, 'due to window:', window.title);
+            this.wsManager?.broadcast('profile.navigate', { profileId }, 'profiles');
+          });
+          
           windowWatcher.startWatching(config.rules);
         } else {
           console.log('ℹ️ Auto-profile switching disabled or no rules configured');
@@ -67,7 +74,6 @@ class LibreDeckDaemon {
 
   public async start() {
     await this.initializeServices();
-    await this.initializeAutoProfileSwitching();
 
     // Crear servidor HTTP con Bun
     this.httpServer = Bun.serve({
