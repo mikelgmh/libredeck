@@ -52,15 +52,16 @@
       </div>
 
       <!-- Actions Library (when no button selected) -->
-      <div v-else>
-        <!-- <ActionsLibrary :plugins="plugins" /> -->
+      <div v-else class="flex flex-col items-center justify-center h-full text-center">
+        <MousePointer :size="48" class="text-base-content/50 mb-4" />
+        <p class="text-lg text-base-content/70">Selecciona un botón</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { Grid3x3 } from 'lucide-vue-next'
+import { Grid3x3, MousePointer } from 'lucide-vue-next'
 import ProfileSelector from './ProfileSelector.vue'
 import ButtonEditor from './ButtonEditor.vue'
 import ActionsLibrary from './ActionsLibrary.vue'

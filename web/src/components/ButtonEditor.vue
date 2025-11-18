@@ -114,28 +114,13 @@
       </div>
 
       <!-- Drop zone hint -->
-      <div v-if="buttonConfig.actions.length === 0 && !isDraggingAction" class="text-center py-8 text-sm text-base-content/50">
-        Arrastra acciones aquí o usa el botón de abajo
+      <div v-if="!isDraggingAction" class="border-2 border-dashed border-base-content/30 rounded-lg p-4 text-center text-sm text-base-content/50 mt-4">
+        Arrastra acciones aquí desde la barra lateral derecha
       </div>
       
       <div v-if="isDraggingAction" class="text-center py-12 text-sm font-medium" :class="isDragOver ? 'text-primary' : 'text-base-content/60'">
         <div class="text-2xl mb-2">↓</div>
         Suelta aquí para añadir la acción
-      </div>
-
-      <!-- Add Action Button -->
-      <div class="dropdown dropdown-top w-full">
-        <label tabindex="0" class="btn btn-outline btn-sm w-full">
-          <Plus :size="16" />
-          Añadir Acción
-        </label>
-        <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-full">
-          <li><a @click="() => addAction('shell')"><Terminal :size="16" />Ejecutar Comando</a></li>
-          <li><a @click="() => addAction('http')"><Globe :size="16" />Llamada HTTP</a></li>
-          <li><a @click="() => addAction('hotkey')"><Keyboard :size="16" />Atajo de Teclado</a></li>
-          <li><a @click="() => addAction('type')"><Type :size="16" />Escribir Texto</a></li>
-          <li><a @click="() => addAction('multimedia')"><Volume2 :size="16" />Multimedia</a></li>
-        </ul>
       </div>
     </div>
   </div>
@@ -143,7 +128,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { Plus, Terminal, Globe, Keyboard, Volume2, Type } from 'lucide-vue-next'
 import ActionEditor from './ActionEditor.vue'
 import IconPicker from './IconPicker.vue'
 import type { ButtonData } from '../types/streamdeck'
