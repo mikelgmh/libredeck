@@ -1,6 +1,6 @@
 <template>
   <div class="flex h-screen bg-base-100 text-base-content">
-    <!-- Sidebar -->
+    <!-- Sidebar Izquierdo -->
     <Sidebar
       :connectionStatus="connectionStatus"
       :connectionText="connectionText"
@@ -52,6 +52,9 @@
         @grid-size-change="changeGridSize"
       />
     </div>
+
+    <!-- Sidebar Derecho - Biblioteca de Acciones -->
+    <ActionsRightSidebar />
     
     <!-- QR Modal -->
     <QRModal ref="qrModal" />
@@ -64,6 +67,7 @@ import { useStreamDeck } from '../composables/useStreamDeck'
 import Sidebar from './Sidebar.vue'
 import Toolbar from './Toolbar.vue'
 import StreamDeckGrid from './StreamDeckGrid.vue'
+import ActionsRightSidebar from './ActionsRightSidebar.vue'
 import QRModal from './QRModal.vue'
 
 // QR Modal ref

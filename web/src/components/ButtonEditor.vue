@@ -83,15 +83,45 @@
     <!-- Actions Section -->
     <div class="divider text-sm">Acciones</div>
     
-    <div class="space-y-3">
-      <ActionEditor
-        v-for="(action, index) in buttonConfig.actions" 
-        :key="action.id || index"
-        :action="action"
-        :index="index"
-        @update-parameter="(paramKey, value) => updateActionParameter(index, paramKey, value)"
-        @remove="() => removeAction(index)"
-      />
+    <div 
+      ref="actionsContainer"
+      class="p-2 rounded-lg transition-all duration-200"
+      :class="{
+        'min-h-[100px]': !isDraggingAction,
+        'min-h-[200px] bg-primary/5 border-2 border-primary border-dashed': isDraggingAction,
+        'bg-primary/20': isDragOver
+      }"
+      @dragover.prevent="handleDragOver"
+      @dragleave="handleDragLeave"
+      @drop.prevent="handleDrop"
+    >
+      <!-- Swapy container with slots -->
+      <div v-if="buttonConfig.actions.length > 0" class="space-y-3">
+        <div 
+          v-for="(action, index) in buttonConfig.actions" 
+          :key="action.id || index"
+          :data-swapy-slot="`action-${index}`"
+        >
+          <div :data-swapy-item="`action-${index}`">
+            <ActionEditor
+              :action="action"
+              :index="index"
+              @update-parameter="(paramKey, value) => updateActionParameter(index, paramKey, value)"
+              @remove="() => removeAction(index)"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Drop zone hint -->
+      <div v-if="buttonConfig.actions.length === 0 && !isDraggingAction" class="text-center py-8 text-sm text-base-content/50">
+        Arrastra acciones aquí o usa el botón de abajo
+      </div>
+      
+      <div v-if="isDraggingAction" class="text-center py-12 text-sm font-medium" :class="isDragOver ? 'text-primary' : 'text-base-content/60'">
+        <div class="text-2xl mb-2">↓</div>
+        Suelta aquí para añadir la acción
+      </div>
 
       <!-- Add Action Button -->
       <div class="dropdown dropdown-top w-full">
@@ -112,10 +142,17 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { Plus, Terminal, Globe, Keyboard, Volume2, Type } from 'lucide-vue-next'
 import ActionEditor from './ActionEditor.vue'
 import IconPicker from './IconPicker.vue'
 import type { ButtonData } from '../types/streamdeck'
+import { createSwapy } from 'swapy'
+
+const isDragOver = ref(false)
+const isDraggingAction = ref(false)
+const actionsContainer = ref<HTMLElement | null>(null)
+let swapyInstance: any = null
 
 interface Props {
   buttonConfig: ButtonData
@@ -188,4 +225,90 @@ const removeAction = (index: number) => {
 const updateActionParameter = (actionIndex: number, paramKey: string, value: any) => {
   emit('update-action-parameter', actionIndex, paramKey, value)
 }
+
+// Drag and drop handlers
+const handleDragOver = (event: DragEvent) => {
+  event.preventDefault()
+  isDragOver.value = true
+}
+
+const handleDragLeave = (event: DragEvent) => {
+  isDragOver.value = false
+}
+
+const handleDrop = (event: DragEvent) => {
+  isDragOver.value = false
+  isDraggingAction.value = false
+  
+  if (event.dataTransfer) {
+    try {
+      const data = JSON.parse(event.dataTransfer.getData('application/json'))
+      if (data.type) {
+        addAction(data.type)
+      }
+    } catch (error) {
+      console.error('Error parsing dropped data:', error)
+    }
+  }
+}
+
+// Global drag events
+const handleGlobalDragStart = (event: DragEvent) => {
+  if (event.dataTransfer?.types.includes('application/json')) {
+    isDraggingAction.value = true
+    if (swapyInstance) {
+      swapyInstance.enable(false)
+    }
+  }
+}
+
+const handleGlobalDragEnd = () => {
+  isDraggingAction.value = false
+  isDragOver.value = false
+  if (swapyInstance) {
+    swapyInstance.enable(true)
+  }
+}
+
+// Initialize Swapy
+const initSwapy = async () => {
+  await nextTick()
+  if (actionsContainer.value && props.buttonConfig.actions.length > 0) {
+    if (swapyInstance) {
+      swapyInstance.destroy()
+    }
+    
+    swapyInstance = createSwapy(actionsContainer.value, {
+      animation: 'dynamic'
+    })
+    
+    swapyInstance.onSwap((event: any) => {
+      // Reordenar acciones según el swap
+      const oldIndex = parseInt(event.fromSlot.replace('action-', ''))
+      const newIndex = parseInt(event.toSlot.replace('action-', ''))
+      
+      // Aquí necesitarías emitir un evento para reordenar las acciones
+      console.log('Swap:', oldIndex, '->', newIndex)
+    })
+  }
+}
+
+// Watch for actions changes to reinitialize Swapy
+watch(() => props.buttonConfig.actions.length, () => {
+  initSwapy()
+})
+
+onMounted(() => {
+  window.addEventListener('dragstart', handleGlobalDragStart)
+  window.addEventListener('dragend', handleGlobalDragEnd)
+  initSwapy()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('dragstart', handleGlobalDragStart)
+  window.removeEventListener('dragend', handleGlobalDragEnd)
+  if (swapyInstance) {
+    swapyInstance.destroy()
+  }
+})
 </script>
