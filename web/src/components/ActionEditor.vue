@@ -1,6 +1,6 @@
 <template>
   <div class="card bg-base-300 p-3 cursor-default">
-    <div class="flex items-start gap-2 mb-2">
+    <div class="flex items-center gap-2 mb-2">
       <!-- Drag Handle - ONLY draggable element -->
       <button 
         data-swapy-handle

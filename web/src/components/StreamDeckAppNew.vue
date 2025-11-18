@@ -21,6 +21,7 @@
       @update-button-text-color="updateButtonTextColor"
       @add-action="addAction"
       @remove-action="removeAction"
+      @reorder-actions="reorderActions"
       @update-action-parameter="(args) => updateActionParameter(args[0], args[1], args[2])"
     />
 
@@ -138,6 +139,7 @@ const {
   deleteButton,
   addAction,
   removeAction,
+  reorderActions,
   updateActionParameter,
   createProfile,
   changeGridSize,

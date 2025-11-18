@@ -46,6 +46,7 @@
             @add-action="$emit('add-action', $event)"
             @remove-action="$emit('remove-action', $event)"
             @update-action-parameter="(...args) => $emit('update-action-parameter', args)"
+            @reorder-actions="(newOrderedActions) => $emit('reorder-actions', newOrderedActions)"
           />
         </div>
       </div>
@@ -89,6 +90,7 @@ interface Emits {
   (e: 'add-action', type: string): void
   (e: 'remove-action', index: number): void
   (e: 'update-action-parameter', args: [number, string, any]): void
+  (e: 'reorder-actions', newOrderedActions: any[]): void
 }
 
 const props = defineProps<Props>()

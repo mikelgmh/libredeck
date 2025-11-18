@@ -543,6 +543,63 @@ export function useStreamDeck() {
     console.log('🗑️ Removed action at index:', index)
   }
 
+  const reorderActions = async (newOrderedActions: any[]) => {
+    // Bloquear recargas de WebSocket durante todo el proceso
+    isSwapping.value = true
+    console.log('🔒 isSwapping = true, blocking WebSocket reloads')
+
+    // NO actualizar buttonConfig local para evitar re-renders que rompan Swapy
+    // En su lugar, guardar directamente en la BD
+    console.log(`🔄 Reordering actions:`, newOrderedActions.map(a => a.type).join(' → '))
+
+    // Guardar directamente con el nuevo orden
+    const position = selectedButton.value
+    if (position === null || !currentPage.value) {
+      isSwapping.value = false
+      return
+    }
+
+    const button = getButton(position)
+    if (!button) {
+      isSwapping.value = false
+      return
+    }
+
+    // Crear el config actualizado con las acciones reordenadas
+    const updatedConfig = {
+      ...buttonConfig.value,
+      actions: newOrderedActions
+    }
+
+    try {
+      await apiRequest(`/buttons/${button.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          page_id: currentPage.value.id,
+          position,
+          data: updatedConfig
+        })
+      })
+
+      console.log('✅ Actions reordered and saved')
+
+      // NO actualizar buttonConfig aquí - dejar que Swapy mantenga el orden visual
+      // y que el WebSocket sincronice cuando desbloqueemos isSwapping
+
+      // Esperar antes de desbloquear para que Swapy complete su animación
+      setTimeout(() => {
+        isSwapping.value = false
+        console.log('🔓 isSwapping = false, allowing WebSocket reloads')
+
+        // Ahora sí, recargar desde la API para sincronizar
+        loadButtons()
+      }, 300)
+    } catch (error) {
+      console.error('❌ Failed to save reordered actions:', error)
+      isSwapping.value = false
+    }
+  }
+
   const updateActionParameter = (actionIndex: number, paramKey: string, value: any) => {
     const actions = [...buttonConfig.value.actions]
     actions[actionIndex] = {
@@ -820,6 +877,7 @@ export function useStreamDeck() {
     saveButtonConfig,
     addAction,
     removeAction,
+    reorderActions,
     updateActionParameter,
     createProfile,
     changeGridSize,
