@@ -91,7 +91,6 @@
           </div>
 
           <AutoProfileSwitcher
-            :profile="selectedProfile"
             :available-profiles="profiles"
             @config-updated="handleAutoSwitchConfigUpdate"
           />
@@ -260,25 +259,9 @@ const handleCreateProfile = async () => {
 }
 
 const handleAutoSwitchConfigUpdate = (config: { enabled: boolean; rules: any[] }) => {
-  if (selectedProfile.value) {
-    let currentData = selectedProfile.value.data
-    if (typeof currentData === 'string') {
-      try {
-        currentData = JSON.parse(currentData)
-      } catch {
-        currentData = {}
-      }
-    }
-
-    // Update the profile data with the new auto-switch configuration
-    const updatedData = {
-      ...currentData,
-      autoSwitchEnabled: config.enabled,
-      autoSwitchRules: config.rules
-    }
-
-    emit('profile-updated', selectedProfileId.value, { data: updatedData })
-  }
+  console.log('Auto-profile configuration updated:', config)
+  // The AutoProfileSwitcher component handles saving to global settings
+  // No need to update individual profile data anymore
 }
 
 const showModal = () => {

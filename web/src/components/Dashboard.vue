@@ -715,6 +715,18 @@ const loadSampleLayout = async () => {
   }
 }
 
+const handleAutoProfileConfigUpdate = (config: { enabled: boolean; rules: any[] }) => {
+  console.log('Auto-profile configuration updated:', config)
+  // The AutoProfileSwitcher component handles saving to settings API
+  // We could add additional logic here if needed
+}
+
+const handleAutoProfileConfigUpdate = (config: { enabled: boolean; rules: any[] }) => {
+  console.log('Auto-profile configuration updated:', config)
+  // The AutoProfileSwitcher component handles saving to settings API
+  // We could add additional logic here if needed
+}
+
 const formatDate = (timestamp: number) => {
   return new Date(timestamp).toLocaleDateString()
 }

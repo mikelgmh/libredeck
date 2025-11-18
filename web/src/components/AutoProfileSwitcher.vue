@@ -77,9 +77,9 @@
 
               <!-- Executable Selector -->
               <ExecutableSelector
-                v-model:executable-path="rule.executablePath"
-                v-model:process-name="rule.processName"
-                @update="updateRule(rule)"
+                :executable-path="rule.executablePath"
+                :process-name="rule.processName"
+                @update:modelValue="updateExecutableForRule(rule, $event)"
               />
 
               <!-- Window Title Filter -->
@@ -102,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Plus, Trash2 } from 'lucide-vue-next'
 import ExecutableSelector from './ExecutableSelector.vue'
 import WindowTitleFilter from './WindowTitleFilter.vue'
@@ -119,7 +119,6 @@ interface AutoSwitchRule {
 }
 
 interface Props {
-  profile: ProfileData
   availableProfiles: ProfileData[]
 }
 
@@ -133,42 +132,55 @@ const emit = defineEmits<Emits>()
 const autoSwitchEnabled = ref(false)
 const rules = ref<AutoSwitchRule[]>([])
 
-// Load existing configuration
-const loadConfiguration = () => {
-  const profileData = props.profile.data
-  if (typeof profileData === 'string') {
-    try {
-      const parsed = JSON.parse(profileData)
-      autoSwitchEnabled.value = parsed.autoSwitchEnabled || false
-      rules.value = parsed.autoSwitchRules || []
-    } catch {
-      autoSwitchEnabled.value = false
-      rules.value = []
+// API Base URL - Use dynamic hostname for network access
+const API_BASE = `http://${window.location.hostname}:3001/api/v1`
+
+// Load existing configuration from global settings
+const loadConfiguration = async () => {
+  try {
+    const response = await fetch(`${API_BASE}/settings?key=autoProfileSwitch`)
+    if (response.ok) {
+      const data = await response.json()
+      if (data.value) {
+        const config = JSON.parse(data.value)
+        autoSwitchEnabled.value = config.enabled || false
+        rules.value = config.rules || []
+      }
     }
-  } else {
-    autoSwitchEnabled.value = profileData?.autoSwitchEnabled || false
-    rules.value = profileData?.autoSwitchRules || []
+  } catch (error) {
+    console.error('Failed to load auto-profile configuration:', error)
+    autoSwitchEnabled.value = false
+    rules.value = []
   }
 }
 
-// Save configuration
-const saveConfiguration = () => {
-  const profileData = {
-    ...(typeof props.profile.data === 'string'
-      ? JSON.parse(props.profile.data)
-      : props.profile.data),
-    autoSwitchEnabled: autoSwitchEnabled.value,
-    autoSwitchRules: rules.value
-  }
+// Save configuration to global settings
+const saveConfiguration = async () => {
+  try {
+    const config = {
+      enabled: autoSwitchEnabled.value,
+      rules: rules.value
+    }
 
-  emit('config-updated', {
-    enabled: autoSwitchEnabled.value,
-    rules: rules.value
-  })
+    await fetch(`${API_BASE}/settings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        key: 'autoProfileSwitch',
+        value: JSON.stringify(config)
+      })
+    })
+
+    emit('config-updated', config)
+  } catch (error) {
+    console.error('Failed to save auto-profile configuration:', error)
+  }
 }
 
-const handleToggleAutoSwitch = () => {
-  saveConfiguration()
+const handleToggleAutoSwitch = async () => {
+  await saveConfiguration()
   if (autoSwitchEnabled.value) {
     autoProfileSwitcher.startWatcher(rules.value)
   } else {
@@ -211,24 +223,21 @@ const updateRule = (updatedRule: AutoSwitchRule) => {
   }
 }
 
-// Load configuration when profile changes
-watch(() => props.profile, (newProfile, oldProfile) => {
-  // Stop watcher for old profile
-  if (oldProfile && autoSwitchEnabled.value) {
-    autoProfileSwitcher.stopWatcher()
-  }
-  
-  // Load new configuration
-  loadConfiguration()
-  
-  // Start watcher for new profile if enabled
+const updateExecutableForRule = (rule: AutoSwitchRule, executableData: { executablePath?: string; processName?: string }) => {
+  rule.executablePath = executableData.executablePath
+  rule.processName = executableData.processName
+  updateRule(rule)
+}
+
+// Load configuration on mount
+onMounted(async () => {
+  await loadConfiguration()
   if (autoSwitchEnabled.value) {
     autoProfileSwitcher.startWatcher(rules.value)
   }
-}, { immediate: true })
+})
 
 // Cleanup on unmount
-import { onUnmounted } from 'vue'
 onUnmounted(() => {
   if (autoSwitchEnabled.value) {
     autoProfileSwitcher.stopWatcher()

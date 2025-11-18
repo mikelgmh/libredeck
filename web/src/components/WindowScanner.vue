@@ -193,6 +193,12 @@ const selectWindow = (window: WindowInfo) => {
   selectedWindow.value = window
 }
 
+const confirmSelection = () => {
+  if (selectedWindow.value) {
+    emit('window-selected', selectedWindow.value)
+  }
+}
+
 const testConnection = async () => {
   console.log('🧪 Testing connection manually...')
   const isConnected = await checkConnection()
