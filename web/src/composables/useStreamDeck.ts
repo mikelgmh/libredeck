@@ -948,6 +948,39 @@ export function useStreamDeck() {
     }
   }
 
+  const updatePage = async (pageId: string, updates: Partial<PageData>) => {
+    try {
+      const page = currentPages.value.find(p => p.id === pageId)
+      if (!page) return
+
+      const updatedPage = await apiRequest(`/pages/${pageId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: updates.name || page.name,
+          order_idx: updates.order_idx || page.order_idx,
+          is_folder: updates.is_folder !== undefined ? updates.is_folder : page.is_folder,
+          data: updates.data || page.data
+        })
+      })
+
+      // Update local page
+      const index = currentPages.value.findIndex(p => p.id === pageId)
+      if (index > -1) {
+        currentPages.value[index] = updatedPage
+      }
+
+      // If this is the current page, update currentPage
+      if (currentPage.value?.id === pageId) {
+        currentPage.value = updatedPage
+      }
+
+      console.log('✅ Page updated successfully')
+    } catch (error) {
+      console.error('❌ Failed to update page:', error)
+      throw error
+    }
+  }
+
   // Grid management functions
   const changeGridSize = async (deltaX: number, deltaY: number) => {
     let changed = false
@@ -1142,34 +1175,33 @@ export function useStreamDeck() {
     getButtonData,
     getButtonStyle,
 
-    // Functions
-    connectWebSocket,
-    loadProfiles,
-    loadProfile,
-    selectProfile,
-    loadButtons,
-    loadPlugins,
-    getButton,
-    selectButton,
-    executeButton,
-    deleteButton,
-    saveButtonConfig,
-    addAction,
-    removeAction,
-    reorderActions,
-    updateActionParameter,
-    createProfile,
-    updateProfile,
-    deleteProfile,
-    selectPage,
-    createPage,
-    deletePage,
-    changeGridSize,
-    handleSwap,
-    debouncedSave,
-    cleanup,
-
-    // Internal state for watchers
+  // Functions
+  connectWebSocket,
+  loadProfiles,
+  loadProfile,
+  selectProfile,
+  loadButtons,
+  loadPlugins,
+  getButton,
+  selectButton,
+  executeButton,
+  deleteButton,
+  saveButtonConfig,
+  addAction,
+  removeAction,
+  reorderActions,
+  updateActionParameter,
+  createProfile,
+  updateProfile,
+  deleteProfile,
+  selectPage,
+  createPage,
+  deletePage,
+  updatePage,
+  changeGridSize,
+  handleSwap,
+  debouncedSave,
+  cleanup,    // Internal state for watchers
     isChangingButton,
     isSaving,
     isSwapping,

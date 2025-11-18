@@ -63,6 +63,8 @@
         :pages="currentPages"
         @page-selected="handlePageSelected"
         @page-created="handlePageCreated"
+        @page-deleted="handlePageDeleted"
+        @page-renamed="handlePageRenamed"
       />
     </div>
 
@@ -183,6 +185,7 @@ const {
   selectPage,
   createPage,
   deletePage,
+  updatePage,
   changeGridSize,
   handleSwap,
   debouncedSave,
@@ -226,6 +229,14 @@ const handlePageSelected = async (pageId: string) => {
 
 const handlePageCreated = async (name: string, isFolder: boolean) => {
   await createPage(name, isFolder)
+}
+
+const handlePageDeleted = async (pageId: string) => {
+  await deletePage(pageId)
+}
+
+const handlePageRenamed = async (pageId: string, newName: string) => {
+  await updatePage(pageId, { name: newName })
 }
 
 // Estas funciones actualizan buttonConfig directamente, lo que dispara el watch

@@ -30,7 +30,7 @@
     </div>
 
     <!-- Plugins -->
-    <div>
+   <!--  <div>
       <h3 class="text-base font-semibold mb-4">Plugins</h3>
       <div v-if="plugins.length === 0" class="text-sm text-base-content/70">
         No hay plugins instalados
@@ -52,7 +52,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </div> -->
   </div>
 </template>
 

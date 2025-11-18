@@ -175,41 +175,23 @@
     </div>
     
     <!-- Context Menu -->
-    <div
-      v-if="contextMenu.show"
-      ref="contextMenuRef"
-      class="fixed bg-base-100 rounded-lg shadow-xl border border-base-300 py-1 z-[9999]"
-      :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
-      @click.stop
-    >
-      <button
-        v-if="getButton(contextMenu.position)"
-        @click="handleExecute"
-        class="w-full px-4 py-2 text-left hover:bg-base-200 flex items-center gap-2 text-sm"
-      >
-        <Play :size="16" />
-        Pulsar
-      </button>
-      <button
-        v-if="getButton(contextMenu.position)"
-        @click="handleDelete"
-        class="w-full px-4 py-2 text-left hover:bg-base-200 flex items-center gap-2 text-sm text-error"
-      >
-        <Trash2 :size="16" />
-        Eliminar
-      </button>
-      <div v-if="!getButton(contextMenu.position)" class="px-4 py-2 text-sm text-base-content/50">
-        Botón vacío
-      </div>
-    </div>
+    <ContextMenu
+      :show="contextMenu.show"
+      :x="contextMenu.x"
+      :y="contextMenu.y"
+      :items="contextMenuItems"
+      @item-click="handleContextMenuItem"
+      @close="hideContextMenu"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { createSwapy, type Swapy } from 'swapy'
 import { Plus, Play, Trash2, Minus } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
+import ContextMenu from './ContextMenu.vue'
 import type { ButtonData, ButtonEntity } from '../types/streamdeck'
 
 interface Props {
@@ -237,7 +219,6 @@ const emit = defineEmits<Emits>()
 // Swapy instance
 const container = ref<HTMLElement | null>(null)
 const swapy = ref<Swapy | null>(null)
-const contextMenuRef = ref<HTMLElement | null>(null)
 
 // Context menu state
 const contextMenu = ref({
@@ -245,6 +226,39 @@ const contextMenu = ref({
   x: 0,
   y: 0,
   position: -1
+})
+
+// Context menu items
+const contextMenuItems = computed(() => {
+  const button = props.getButton(contextMenu.value.position)
+  
+  if (button) {
+    // Menu for existing buttons
+    return [
+      {
+        id: 'execute',
+        label: 'Pulsar',
+        icon: Play,
+        danger: false
+      },
+      {
+        id: 'delete',
+        label: 'Eliminar',
+        icon: Trash2,
+        danger: true
+      }
+    ]
+  } else {
+    // Menu for empty slots
+    return [
+      {
+        id: 'create',
+        label: 'Crear botón',
+        icon: Plus,
+        danger: false
+      }
+    ]
+  }
 })
 
 // Get Lucide icon component by name
@@ -270,23 +284,20 @@ const hideContextMenu = () => {
   contextMenu.value.show = false
 }
 
-// Handle execute button
-const handleExecute = () => {
-  emit('button-execute', contextMenu.value.position)
-  hideContextMenu()
-}
-
-// Handle delete button
-const handleDelete = () => {
-  emit('button-delete', contextMenu.value.position)
-  hideContextMenu()
-}
-
-// Close context menu on click outside
-const handleClickOutside = (event: MouseEvent) => {
-  if (contextMenu.value.show && contextMenuRef.value && !contextMenuRef.value.contains(event.target as Node)) {
-    hideContextMenu()
+// Handle context menu item click
+const handleContextMenuItem = (item: any) => {
+  switch (item.id) {
+    case 'execute':
+      emit('button-execute', contextMenu.value.position)
+      break
+    case 'delete':
+      emit('button-delete', contextMenu.value.position)
+      break
+    case 'create':
+      emit('button-click', contextMenu.value.position)
+      break
   }
+  hideContextMenu()
 }
 
 // Close context menu on Escape key
@@ -313,13 +324,11 @@ const initializeSwapy = () => {
 
 onMounted(() => {
   initializeSwapy()
-  document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleEscapeKey)
 })
 
 onUnmounted(() => {
   swapy.value?.destroy()
-  document.removeEventListener('click', handleClickOutside)
   document.removeEventListener('keydown', handleEscapeKey)
 })
 </script>
