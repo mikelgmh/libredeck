@@ -2,6 +2,7 @@ import { initDatabase } from './db';
 import { WebSocketManager } from './ws';
 import { PluginLoader } from './plugin-loader';
 import { ActionRunner } from './action-runner';
+import { windowWatcher } from './window-watcher';
 import { setupAPIRoutes } from './api/routes';
 
 const PORT = Number(process.env.PORT) || 3001;
@@ -59,9 +60,9 @@ class LibreDeckDaemon {
           origin.match(/https?:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+(:\d+)?/);
 
         const corsHeaders = {
-          'Access-Control-Allow-Origin': isLocalOrigin ? origin : 'http://localhost:4321',
+          'Access-Control-Allow-Origin': '*', // Allow all origins for development
           'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
           'Access-Control-Allow-Credentials': 'true'
         };
 
@@ -102,7 +103,8 @@ class LibreDeckDaemon {
           const response = await setupAPIRoutes(req, {
             wsManager: this.wsManager!,
             pluginLoader: this.pluginLoader!,
-            actionRunner: this.actionRunner!
+            actionRunner: this.actionRunner!,
+            windowWatcher: windowWatcher
           });
 
           // Agregar headers CORS a las respuestas API

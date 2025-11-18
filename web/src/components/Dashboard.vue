@@ -291,13 +291,14 @@ const currentPage = ref(null)
 // WebSocket
 let ws: WebSocket | null = null
 
-// API Base URL
-const API_BASE = 'http://localhost:3001/api/v1'
+// API Base URL - Use dynamic hostname for network access
+const API_BASE = `http://${window.location.hostname}:3001/api/v1`
 
 // Methods
 const connectWebSocket = () => {
   try {
-    ws = new WebSocket(`ws://localhost:${settings.value.wsPort}`)
+    // Use dynamic hostname for network access
+    ws = new WebSocket(`ws://${window.location.hostname}:${settings.value.wsPort}`)
     
     ws.onopen = () => {
       connectionStatus.value = 'status-online'

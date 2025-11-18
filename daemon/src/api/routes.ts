@@ -1,6 +1,7 @@
 import { WebSocketManager } from '../ws';
 import { PluginLoader } from '../plugin-loader';
 import { ActionRunner } from '../action-runner';
+import { windowWatcher } from '../window-watcher';
 import { DatabaseService } from '../db';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -8,6 +9,7 @@ interface APIServices {
   wsManager: WebSocketManager;
   pluginLoader: PluginLoader;
   actionRunner: ActionRunner;
+  windowWatcher: typeof windowWatcher;
 }
 
 export async function setupAPIRoutes(
@@ -21,16 +23,16 @@ export async function setupAPIRoutes(
   const db = new DatabaseService();
 
   try {
-    // Health endpoint
-    if (path === '/api/v1/health') {
-      return jsonResponse({
-        status: 'ok',
-        timestamp: Date.now(),
-        version: '0.1.0',
-        websocket: {
-          clients: services.wsManager.getConnectedClients()
-        }
-      });
+    // Test endpoint for connectivity
+    if (path === '/api/v1/test') {
+      if (method === 'GET') {
+        console.log('🧪 Test endpoint called')
+        return jsonResponse({ 
+          status: 'ok', 
+          message: 'Daemon is running',
+          timestamp: Date.now()
+        })
+      }
     }
 
     // Profiles endpoints
@@ -340,25 +342,47 @@ export async function setupAPIRoutes(
       }
     }
 
-    // File selection endpoint
-    if (path === '/api/v1/files/select') {
+    // Windows monitoring endpoints
+    if (path === '/api/v1/windows/active') {
       if (method === 'GET') {
-        // Crear un script de PowerShell que abra un diálogo de selección de archivos
+        // Obtener la ventana activa actual usando PowerShell
         const powershellScript = `
-          Add-Type -AssemblyName System.Windows.Forms
-          $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
-          $openFileDialog.Title = "Seleccionar aplicación o archivo ejecutable"
-          $openFileDialog.Filter = "Archivos ejecutables (*.exe;*.bat;*.cmd;*.lnk)|*.exe;*.bat;*.cmd;*.lnk|Todos los archivos (*.*)|*.*"
-          $openFileDialog.Multiselect = $false
+          Add-Type @"
+            using System;
+            using System.Runtime.InteropServices;
+            public class Win32 {
+                [DllImport("user32.dll")]
+                public static extern IntPtr GetForegroundWindow();
+                
+                [DllImport("user32.dll")]
+                public static extern int GetWindowText(IntPtr hWnd, string lpString, int nMaxCount);
+                
+                [DllImport("user32.dll")]
+                public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+            }
+"@
 
-          if ($openFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-            Write-Output $openFileDialog.FileName
+          $hwnd = [Win32]::GetForegroundWindow()
+          if ($hwnd -ne 0) {
+            $processId = 0
+            [Win32]::GetWindowThreadProcessId($hwnd, [ref]$processId)
+            $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+            
+            $title = New-Object -TypeName "System.Text.StringBuilder" -ArgumentList 256
+            [Win32]::GetWindowText($hwnd, $title, $title.Capacity) | Out-Null
+            
+            @{
+              hwnd = $hwnd.ToString()
+              title = $title.ToString()
+              processId = $processId
+              processName = $process.Name
+              executablePath = $process.Path
+            } | ConvertTo-Json
           } else {
-            Write-Output ""
+            @{ error = "No active window found" } | ConvertTo-Json
           }
         `.trim()
 
-        // Ejecutar el script de PowerShell
         const proc = Bun.spawn({
           cmd: ['powershell.exe', '-Command', powershellScript],
           stdio: ['ignore', 'pipe', 'pipe']
@@ -370,17 +394,156 @@ export async function setupAPIRoutes(
         await proc.exited
 
         if (proc.exitCode === 0 && output.trim()) {
-          return jsonResponse({
-            success: true,
-            path: output.trim(),
-            filename: output.trim().split('\\').pop()
-          })
+          try {
+            const windowInfo = JSON.parse(output.trim())
+            return jsonResponse(windowInfo)
+          } catch {
+            return jsonResponse({ error: 'Failed to parse window info' }, 500)
+          }
         } else {
-          return jsonResponse({
-            success: false,
-            error: 'Usuario canceló la selección o error en el diálogo'
-          })
+          return jsonResponse({ error: 'Failed to get active window' }, 500)
         }
+      }
+    }
+
+    if (path === '/api/v1/windows/list') {
+      if (method === 'GET') {
+        console.log('🔍 Windows list requested')
+        
+        // Obtener lista de todas las ventanas visibles usando PowerShell
+        const powershellScript = `
+          try {
+            Add-Type @"
+              using System;
+              using System.Runtime.InteropServices;
+              using System.Collections.Generic;
+              
+              public class WindowInfo {
+                  public IntPtr HWnd { get; set; }
+                  public string Title { get; set; }
+                  public uint ProcessId { get; set; }
+                  public string ProcessName { get; set; }
+                  public string ExecutablePath { get; set; }
+              }
+              
+              public class Win32 {
+                  [DllImport("user32.dll")]
+                  public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+                  
+                  [DllImport("user32.dll")]
+                  public static extern int GetWindowText(IntPtr hWnd, string lpString, int nMaxCount);
+                  
+                  [DllImport("user32.dll")]
+                  public static extern bool IsWindowVisible(IntPtr hWnd);
+                  
+                  [DllImport("user32.dll")]
+                  public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+                  
+                  public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+              }
+"@
+
+            $windows = New-Object System.Collections.Generic.List[PSObject]
+            
+            $callback = {
+              param($hwnd, $lParam)
+              
+              try {
+                if ([Win32]::IsWindowVisible($hwnd)) {
+                  $title = New-Object -TypeName "System.Text.StringBuilder" -ArgumentList 256
+                  [Win32]::GetWindowText($hwnd, $title, $title.Capacity) | Out-Null
+                  
+                  if ($title.Length -gt 0) {
+                    $processId = 0
+                    [Win32]::GetWindowThreadProcessId($hwnd, [ref]$processId)
+                    
+                    $process = $null
+                    try {
+                      $process = Get-Process -Id $processId -ErrorAction Stop
+                    } catch {
+                      # Process might have ended, skip this window
+                      return $true
+                    }
+                    
+                    $windows.Add(@{
+                      hwnd = $hwnd.ToString()
+                      title = $title.ToString()
+                      processId = $processId
+                      processName = $process.Name
+                      executablePath = $process.Path
+                    })
+                  }
+                }
+              } catch {
+                # Skip problematic windows
+              }
+              
+              return $true
+            }
+            
+            [Win32]::EnumWindows($callback, 0) | Out-Null
+            
+            # Return JSON array
+            $windows | ConvertTo-Json -Compress
+          } catch {
+            @{ error = $_.Exception.Message } | ConvertTo-Json
+          }
+        `.trim()
+
+        console.log('⚡ Executing PowerShell script...')
+        
+        // TEMPORAL: Return mock data for testing
+        const mockWindows = [
+          {
+            hwnd: "12345678",
+            title: "Visual Studio Code",
+            processId: 1234,
+            processName: "Code",
+            executablePath: "C:\\Users\\Mikel\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
+          },
+          {
+            hwnd: "87654321", 
+            title: "Google Chrome",
+            processId: 5678,
+            processName: "chrome",
+            executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+          },
+          {
+            hwnd: "11223344",
+            title: "Bloc de notas",
+            processId: 9999,
+            processName: "notepad",
+            executablePath: "C:\\Windows\\System32\\notepad.exe"
+          }
+        ]
+        
+        console.log('✅ Returning mock windows data:', mockWindows.length)
+        return jsonResponse(mockWindows)
+      }
+    }
+
+    if (path === '/api/v1/windows/watcher') {
+      if (method === 'POST') {
+        const body = await req.json()
+        const { action, rules } = body
+
+        if (action === 'start' && rules) {
+          services.windowWatcher.updateRules(rules)
+          services.windowWatcher.startWatching(rules)
+          return jsonResponse({ status: 'started' })
+        } else if (action === 'stop') {
+          services.windowWatcher.stopWatching()
+          return jsonResponse({ status: 'stopped' })
+        } else if (action === 'update' && rules) {
+          services.windowWatcher.updateRules(rules)
+          return jsonResponse({ status: 'updated' })
+        }
+      }
+
+      if (method === 'GET') {
+        return jsonResponse({
+          isActive: services.windowWatcher.isActive()
+        })
       }
     }
 

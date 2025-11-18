@@ -90,6 +90,12 @@
             </div>
           </div>
 
+          <AutoProfileSwitcher
+            :profile="selectedProfile"
+            :available-profiles="profiles"
+            @config-updated="handleAutoSwitchConfigUpdate"
+          />
+
           <div class="mt-auto pt-4 border-t border-base-300">
             <button
               @click="deleteProfile"
@@ -148,6 +154,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { Plus } from 'lucide-vue-next'
+import AutoProfileSwitcher from './AutoProfileSwitcher.vue'
 import type { ProfileData } from '../types/streamdeck'
 
 interface Props {
@@ -252,11 +259,25 @@ const handleCreateProfile = async () => {
   }
 }
 
-const deleteProfile = () => {
-  if (selectedProfile.value && props.profiles.length > 1) {
-    if (confirm(`¿Estás seguro de que quieres eliminar el perfil "${selectedProfile.value.name}"?`)) {
-      emit('profile-deleted', selectedProfileId.value)
+const handleAutoSwitchConfigUpdate = (config: { enabled: boolean; rules: any[] }) => {
+  if (selectedProfile.value) {
+    let currentData = selectedProfile.value.data
+    if (typeof currentData === 'string') {
+      try {
+        currentData = JSON.parse(currentData)
+      } catch {
+        currentData = {}
+      }
     }
+
+    // Update the profile data with the new auto-switch configuration
+    const updatedData = {
+      ...currentData,
+      autoSwitchEnabled: config.enabled,
+      autoSwitchRules: config.rules
+    }
+
+    emit('profile-updated', selectedProfileId.value, { data: updatedData })
   }
 }
 

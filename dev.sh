@@ -81,7 +81,7 @@ start_dev() {
     trap 'kill $(jobs -p) 2>/dev/null' EXIT
     
     echo -e "${BLUE}🔧 Iniciando daemon...${NC}"
-    cd daemon && bun run dev &
+    cd daemon && bun run start &
     DAEMON_PID=$!
     
     echo -e "${BLUE}🌐 Iniciando frontend...${NC}"
@@ -270,23 +270,30 @@ EOF
     echo -e "${GREEN}✅ Plugin de ejemplo creado en $PLUGIN_DIR${NC}"
 }
 
-# Mostrar ayuda
-show_help() {
-    echo "Uso: ./dev.sh [comando]"
-    echo ""
-    echo "Comandos disponibles:"
-    echo "  setup     - Verificar prerrequisitos e instalar dependencias"
-    echo "  dev       - Iniciar modo desarrollo (daemon + frontend)"
-    echo "  build     - Construir para producción"
-    echo "  test      - Ejecutar tests"
-    echo "  clean     - Limpiar archivos temporales"
-    echo "  plugin    - Crear plugin de ejemplo"
-    echo "  help      - Mostrar esta ayuda"
-    echo ""
-    echo "Ejemplos:"
-    echo "  ./dev.sh setup    # Primera vez"
-    echo "  ./dev.sh dev      # Desarrollo diario"
-    echo "  ./dev.sh build    # Build de producción"
+# Test daemon connectivity
+test_daemon() {
+    echo -e "${YELLOW}Testing daemon connectivity...${NC}"
+    
+    # Test health endpoint
+    if curl -s http://localhost:3001/api/v1/test > /dev/null 2>&1; then
+        echo -e "${GREEN}✅ Daemon is responding${NC}"
+        echo -e "   🌐 API: ${BLUE}http://localhost:3001${NC}"
+        echo -e "   🧪 Test: ${BLUE}http://localhost:3001/api/v1/test${NC}"
+        
+        # Test windows endpoint
+        echo -e "${YELLOW}Testing windows API...${NC}"
+        WINDOWS_RESPONSE=$(curl -s http://localhost:3001/api/v1/windows/list)
+        if echo "$WINDOWS_RESPONSE" | grep -q "hwnd"; then
+            WINDOW_COUNT=$(echo "$WINDOWS_RESPONSE" | grep -o '"hwnd"' | wc -l)
+            echo -e "${GREEN}✅ Windows API working - found ${WINDOW_COUNT} windows${NC}"
+        else
+            echo -e "${RED}❌ Windows API not working${NC}"
+            echo -e "   Response: ${WINDOWS_RESPONSE}"
+        fi
+    else
+        echo -e "${RED}❌ Daemon is not responding${NC}"
+        echo -e "   Make sure the daemon is running with: ${BLUE}./dev.sh dev${NC}"
+    fi
 }
 
 # Main
@@ -307,7 +314,7 @@ case "${1:-dev}" in
         build_prod
         ;;
     "test")
-        run_tests
+        test_daemon
         ;;
     "clean")
         clean

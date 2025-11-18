@@ -6,11 +6,14 @@ export interface Props {
 const { title = 'LibreDeck' } = Astro.props;
 ---
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="description" content="LibreDeck - Open Source StreamDeck Alternative" />
+    <meta
+      name="description"
+      content="LibreDeck - Open Source StreamDeck Alternative"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
@@ -28,26 +31,27 @@ const { title = 'LibreDeck' } = Astro.props;
         --warning: #f59e0b;
         --error: #ef4444;
       }
-      
+
       * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
-      
+
       body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial, sans-serif;
         background-color: var(--bg-primary);
         color: var(--text-primary);
         line-height: 1.6;
       }
-      
+
       .container {
         max-width: 1200px;
         margin: 0 auto;
         padding: 0 1rem;
       }
-      
+
       .btn {
         display: inline-flex;
         align-items: center;
@@ -62,26 +66,26 @@ const { title = 'LibreDeck' } = Astro.props;
         transition: all 0.2s;
         text-decoration: none;
       }
-      
+
       .btn-primary {
         background-color: var(--primary);
         color: white;
       }
-      
+
       .btn-primary:hover {
         background-color: var(--primary-dark);
       }
-      
+
       .btn-secondary {
         background-color: var(--bg-tertiary);
         color: var(--text-primary);
         border: 1px solid var(--border);
       }
-      
+
       .btn-secondary:hover {
         background-color: var(--bg-secondary);
       }
-      
+
       .card {
         background-color: var(--bg-secondary);
         border: 1px solid var(--border);
@@ -89,30 +93,32 @@ const { title = 'LibreDeck' } = Astro.props;
         padding: 1.5rem;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
       }
-      
+
       .grid {
         display: grid;
         gap: 1rem;
       }
-      
+
       .grid-2 {
         grid-template-columns: repeat(2, 1fr);
       }
-      
+
       .grid-3 {
         grid-template-columns: repeat(3, 1fr);
       }
-      
+
       .grid-4 {
         grid-template-columns: repeat(4, 1fr);
       }
-      
+
       @media (max-width: 768px) {
-        .grid-2, .grid-3, .grid-4 {
+        .grid-2,
+        .grid-3,
+        .grid-4 {
           grid-template-columns: 1fr;
         }
       }
-      
+
       .status-indicator {
         display: inline-block;
         width: 8px;
@@ -120,15 +126,15 @@ const { title = 'LibreDeck' } = Astro.props;
         border-radius: 50%;
         margin-right: 0.5rem;
       }
-      
+
       .status-online {
         background-color: var(--success);
       }
-      
+
       .status-offline {
         background-color: var(--error);
       }
-      
+
       .status-warning {
         background-color: var(--warning);
       }
@@ -138,3 +144,7 @@ const { title = 'LibreDeck' } = Astro.props;
     <slot />
   </body>
 </html>
+
+<style is:global>
+  @import '../styles/global.css';
+</style>
