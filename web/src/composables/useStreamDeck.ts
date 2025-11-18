@@ -216,45 +216,14 @@ export function useStreamDeck() {
   }
 
   // Data loading functions
-  const createDefaultProfile = async () => {
-    try {
-      const defaultProfile = await apiRequest('/profiles', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Perfil Principal',
-          data: { isDefault: true }
-        })
-      })
-
-      // Create default page
-      await apiRequest('/pages', {
-        method: 'POST',
-        body: JSON.stringify({
-          profile_id: defaultProfile.id,
-          name: 'Página Principal',
-          order_idx: 0,
-          data: {}
-        })
-      })
-
-      return defaultProfile
-    } catch (error) {
-      console.error('Failed to create default profile:', error)
-      return null
-    }
-  }
-
   const loadProfiles = async () => {
     try {
       profiles.value = await apiRequest('/profiles')
 
-      // Create default profile if no profiles exist
+      // Check if we have at least one profile
       if (profiles.value.length === 0) {
-        console.log('No profiles found, creating default profile...')
-        const defaultProfile = await createDefaultProfile()
-        if (defaultProfile) {
-          profiles.value = [defaultProfile]
-        }
+        console.error('No profiles found in database. Please run setup first.')
+        return
       }
 
       // Ensure there's always a default profile

@@ -57,21 +57,46 @@ setup_db() {
     echo -e "${GREEN}✅ Base de datos configurada${NC}"
 }
 
-# Crear perfil de ejemplo
-create_sample_profile() {
-    echo -e "${YELLOW}Creando perfil de ejemplo...${NC}"
+# Crear perfil inicial
+create_initial_profile() {
+    echo -e "${YELLOW}Creando perfil inicial...${NC}"
     
-    # Esperar a que el daemon esté listo
-    sleep 3
+    # Iniciar daemon temporalmente
+    cd daemon && bun run start &
+    DAEMON_PID=$!
     
-    # Crear perfil vía API
-    curl -X POST http://localhost:3001/api/v1/profiles \
-        -H "Content-Type: application/json" \
-        -d '{"name":"Perfil de Ejemplo","data":{"description":"Perfil creado automáticamente para desarrollo"}}' \
-        &> /dev/null || echo "No se pudo crear el perfil (daemon no disponible)"
+    # Esperar a que el daemon esté listo (más tiempo)
+    echo "Esperando a que el daemon se inicialice..."
+    sleep 8
     
-    echo -e "${GREEN}✅ Perfil de ejemplo creado${NC}"
+    # Verificar que el daemon esté respondiendo
+    if curl -s http://localhost:3001/health > /dev/null 2>&1; then
+        echo "Daemon está respondiendo, creando perfil..."
+        
+        # Crear perfil inicial vía API
+        RESPONSE=$(curl -s -X POST http://localhost:3001/api/v1/profiles \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Perfil Principal","data":{"isDefault":true}}')
+        
+        if echo "$RESPONSE" | grep -q "id"; then
+            echo "Perfil creado exitosamente"
+        else
+            echo "Error creando perfil: $RESPONSE"
+        fi
+    else
+        echo "Daemon no responde, no se pudo crear el perfil inicial"
+    fi
+    
+    # Detener daemon
+    kill $DAEMON_PID 2>/dev/null
+    wait $DAEMON_PID 2>/dev/null
+    
+    cd ..
+    
+    echo -e "${GREEN}✅ Proceso de creación de perfil inicial completado${NC}"
 }
+
+# Crear plugin de ejemplo
 
 # Iniciar desarrollo
 start_dev() {
@@ -90,8 +115,6 @@ start_dev() {
     
     # Esperar a que los servicios estén listos
     sleep 5
-    
-    create_sample_profile
     
     # Obtener IP local
     if command -v hostname &> /dev/null; then
@@ -302,6 +325,7 @@ case "${1:-dev}" in
         check_prereqs
         install_deps
         setup_db
+        create_initial_profile
         create_example_plugin
         echo -e "${GREEN}🎉 Setup completado. Ejecuta './dev.sh dev' para iniciar${NC}"
         ;;
