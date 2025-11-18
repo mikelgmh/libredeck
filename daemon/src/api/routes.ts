@@ -345,43 +345,60 @@ export async function setupAPIRoutes(
     // Windows monitoring endpoints
     if (path === '/api/v1/windows/active') {
       if (method === 'GET') {
+        console.log('🖥️ Getting active window...')
+
         // Obtener la ventana activa actual usando PowerShell
         const powershellScript = `
-          Add-Type @"
-            using System;
-            using System.Runtime.InteropServices;
-            public class Win32 {
-                [DllImport("user32.dll")]
-                public static extern IntPtr GetForegroundWindow();
-                
-                [DllImport("user32.dll")]
-                public static extern int GetWindowText(IntPtr hWnd, string lpString, int nMaxCount);
-                
-                [DllImport("user32.dll")]
-                public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-            }
+          try {
+            $code = @"
+            [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+            [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int count);
+            [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 "@
+            $win32 = Add-Type -MemberDefinition $code -Name Win32 -Namespace "" -PassThru
 
-          $hwnd = [Win32]::GetForegroundWindow()
-          if ($hwnd -ne 0) {
-            $processId = 0
-            [Win32]::GetWindowThreadProcessId($hwnd, [ref]$processId)
-            $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
-            
-            $title = New-Object -TypeName "System.Text.StringBuilder" -ArgumentList 256
-            [Win32]::GetWindowText($hwnd, $title, $title.Capacity) | Out-Null
-            
-            @{
-              hwnd = $hwnd.ToString()
-              title = $title.ToString()
-              processId = $processId
-              processName = $process.Name
-              executablePath = $process.Path
-            } | ConvertTo-Json
-          } else {
-            @{ error = "No active window found" } | ConvertTo-Json
+            $hwnd = $win32::GetForegroundWindow()
+            if ($hwnd -ne 0) {
+              $processId = 0
+              $win32::GetWindowThreadProcessId($hwnd, [ref]$processId)
+              
+              $process = $null
+              $processName = "Unknown"
+              $executablePath = "Unknown"
+              
+              try {
+                $process = Get-Process -Id $processId -ErrorAction Stop
+                $processName = $process.Name
+                $executablePath = $process.Path
+              } catch {
+                $processName = "Unknown"
+                $executablePath = "Unknown"
+              }
+              
+              $titleBuilder = New-Object System.Text.StringBuilder 256
+              $win32::GetWindowText($hwnd, $titleBuilder, $titleBuilder.Capacity) | Out-Null
+              
+              $windowTitle = $titleBuilder.ToString().Trim()
+              if (-not $windowTitle) {
+                $windowTitle = "Untitled"
+              }
+              
+              @{
+                hwnd = $hwnd.ToString()
+                title = $windowTitle
+                processId = $processId
+                processName = $processName
+                executablePath = $executablePath
+              } | ConvertTo-Json -Compress
+            } else {
+              @{ error = "No active window found" } | ConvertTo-Json -Compress
+            }
+          } catch {
+            @{ error = $_.Exception.Message } | ConvertTo-Json -Compress
           }
         `.trim()
+
+        console.log('⚡ Executing PowerShell script for active window...')
 
         const proc = Bun.spawn({
           cmd: ['powershell.exe', '-Command', powershellScript],
@@ -393,20 +410,40 @@ export async function setupAPIRoutes(
 
         await proc.exited
 
+        console.log('📊 PowerShell exit code:', proc.exitCode)
+        console.log('📝 PowerShell stdout:', output.trim())
+        if (error.trim()) {
+          console.log('❌ PowerShell stderr:', error.trim())
+        }
+
         if (proc.exitCode === 0 && output.trim()) {
           try {
-            const windowInfo = JSON.parse(output.trim())
-            return jsonResponse(windowInfo)
-          } catch {
+            // Extract JSON from output (PowerShell might output extra lines)
+            const lines = output.trim().split('\n').filter(line => line.trim())
+            const jsonLine = lines.find(line => line.trim().startsWith('{') || line.trim().startsWith('@{'))
+            
+            if (jsonLine) {
+              const windowInfo = JSON.parse(jsonLine.trim())
+              console.log('✅ Successfully parsed window info:', windowInfo)
+              return jsonResponse(windowInfo)
+            } else {
+              console.error('❌ No JSON found in PowerShell output')
+              console.error('Raw output:', output.trim())
+              return jsonResponse({ error: 'No JSON found in PowerShell output' }, 500)
+            }
+          } catch (parseError) {
+            console.error('❌ Failed to parse window info JSON:', parseError)
+            console.error('Raw output:', output.trim())
             return jsonResponse({ error: 'Failed to parse window info' }, 500)
           }
         } else {
+          console.error('❌ PowerShell execution failed')
+          console.error('Exit code:', proc.exitCode)
+          console.error('Error output:', error.trim())
           return jsonResponse({ error: 'Failed to get active window' }, 500)
         }
       }
-    }
-
-    if (path === '/api/v1/windows/list') {
+    }    if (path === '/api/v1/windows/list') {
       if (method === 'GET') {
         console.log('🔍 Windows list requested')
         

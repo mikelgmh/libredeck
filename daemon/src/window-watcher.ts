@@ -36,20 +36,55 @@ class WindowWatcher extends EventEmitter {
     // Check every 500ms for window changes
     this.intervalId = setInterval(async () => {
       try {
+        console.log('🔍 Window watcher checking for changes...')
         const currentWindow = await this.getActiveWindow()
+        
+        console.log('📊 Active window result:', currentWindow ? {
+          title: currentWindow.title.substring(0, 50) + (currentWindow.title.length > 50 ? '...' : ''),
+          processName: currentWindow.processName,
+          hwnd: currentWindow.hwnd
+        } : 'null')
 
         if (this.hasWindowChanged(currentWindow)) {
+          console.log('🔄 Window changed detected')
+          console.log('📋 Previous window:', this.activeWindow ? {
+            title: this.activeWindow.title,
+            processName: this.activeWindow.processName,
+            executablePath: this.activeWindow.executablePath
+          } : 'None')
+          
           this.activeWindow = currentWindow
+          
+          console.log('🖥️ New active window:', currentWindow ? {
+            title: currentWindow.title,
+            processName: currentWindow.processName,
+            executablePath: currentWindow.executablePath,
+            hwnd: currentWindow.hwnd
+          } : 'None')
+          
           this.emit('window-changed', currentWindow)
 
           // Check if we need to switch profiles
+          console.log('🔍 Checking for matching auto-switch rules...')
           const matchingRule = this.findMatchingRule(currentWindow)
+          
           if (matchingRule) {
+            console.log('✅ Found matching rule:', {
+              ruleId: matchingRule.id,
+              profileId: matchingRule.profileId,
+              executablePath: matchingRule.executablePath,
+              processName: matchingRule.processName,
+              windowTitleFilter: matchingRule.windowTitleFilter
+            })
             this.emit('profile-switch', matchingRule.profileId, currentWindow)
+          } else {
+            console.log('❌ No matching auto-switch rule found for current window')
           }
+        } else {
+          console.log('✋ No window change detected')
         }
       } catch (error) {
-        console.error('Error in window watcher:', error)
+        console.error('❌ Error in window watcher:', error)
       }
     }, 500)
 
@@ -68,6 +103,14 @@ class WindowWatcher extends EventEmitter {
 
   updateRules(rules: AutoSwitchRule[]) {
     this.rules = rules
+    console.log('📋 Auto-switch rules updated:', rules.map(rule => ({
+      id: rule.id,
+      profileId: rule.profileId,
+      executablePath: rule.executablePath,
+      processName: rule.processName,
+      windowTitleFilter: rule.windowTitleFilter,
+      enabled: rule.enabled
+    })))
   }
 
   isActive(): boolean {

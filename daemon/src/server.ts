@@ -3,6 +3,7 @@ import { WebSocketManager } from './ws';
 import { PluginLoader } from './plugin-loader';
 import { ActionRunner } from './action-runner';
 import { windowWatcher } from './window-watcher';
+import { DatabaseService } from './db';
 import { setupAPIRoutes } from './api/routes';
 
 const PORT = Number(process.env.PORT) || 3001;
@@ -32,6 +33,9 @@ class LibreDeckDaemon {
       // Configurar WebSocket
       this.wsManager = new WebSocketManager(WS_PORT);
 
+      // Inicializar auto-profile switching si hay configuración guardada
+      await this.initializeAutoProfileSwitching();
+
       console.log('✓ Services initialized');
     } catch (error) {
       console.error('Failed to initialize services:', error);
@@ -39,8 +43,31 @@ class LibreDeckDaemon {
     }
   }
 
+  private async initializeAutoProfileSwitching() {
+    try {
+      const db = new DatabaseService();
+      const autoProfileConfig = db.getSetting('autoProfileSwitch');
+
+      if (autoProfileConfig) {
+        const config = JSON.parse(autoProfileConfig);
+        if (config.enabled && config.rules && config.rules.length > 0) {
+          console.log('🔄 Starting auto-profile switching with saved configuration');
+          console.log('📋 Loaded rules:', config.rules.length);
+          windowWatcher.startWatching(config.rules);
+        } else {
+          console.log('ℹ️ Auto-profile switching disabled or no rules configured');
+        }
+      } else {
+        console.log('ℹ️ No auto-profile configuration found');
+      }
+    } catch (error) {
+      console.error('❌ Failed to initialize auto-profile switching:', error);
+    }
+  }
+
   public async start() {
     await this.initializeServices();
+    await this.initializeAutoProfileSwitching();
 
     // Crear servidor HTTP con Bun
     this.httpServer = Bun.serve({
