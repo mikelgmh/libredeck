@@ -1,76 +1,99 @@
 <template>
-  <Modal ref="modal">
-    <div class="profile-settings-modal">
-      <h2 class="modal-title">Ajustes de Perfiles</h2>
-      
-      <div class="modal-body">
+  <dialog ref="dialog" class="profile-settings-modal">
+    <div class="modal-content">
+      <!-- Header -->
+      <div class="text-center">
+        <h2 class="text-xl font-bold text-base-content">Ajustes de Perfiles</h2>
+      </div>
+
+      <!-- Body -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Columna Izquierda: Listado de Perfiles -->
-        <div class="profiles-list">
-          <h3>Perfiles</h3>
-          <div class="profiles-container">
-            <div 
-              v-for="profile in profiles" 
-              :key="profile.id"
-              :class="['profile-item', { active: selectedProfileId === profile.id }]"
-              @click="selectProfile(profile.id)"
-            >
-              {{ profile.name }}
+        <div class="flex flex-col gap-4">
+          <h3 class="text-lg font-semibold text-base-content">Perfiles</h3>
+
+          <div class="flex-1 bg-base-100 rounded-lg p-4 min-h-0">
+            <div class="flex flex-col gap-2 max-h-64 overflow-y-auto">
+              <div
+                v-for="profile in profiles"
+                :key="profile.id"
+                :class="[
+                  'p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-base-200',
+                  selectedProfileId === profile.id
+                    ? 'bg-primary text-primary-content shadow-md'
+                    : 'bg-base-200 text-base-content'
+                ]"
+                @click="selectProfile(profile.id)"
+              >
+                {{ profile.name }}
+              </div>
             </div>
           </div>
-          <button 
+
+          <button
             @click="showCreateModal = true"
-            class="btn btn-primary btn-sm w-full mt-2"
+            class="btn btn-accent btn-sm w-full"
           >
-            <Plus :size="16" />
+            <Plus :size="16" class="mr-2" />
             Nuevo Perfil
           </button>
         </div>
-        
+
         <!-- Columna Derecha: Ajustes del Perfil Seleccionado -->
-        <div class="profile-settings" v-if="selectedProfile">
-          <h3>Ajustes de "{{ selectedProfile.name }}"</h3>
-          
-          <div class="form-group">
-            <label class="form-label">Nombre del perfil</label>
-            <input 
-              v-model="profileName" 
-              type="text" 
-              class="input input-bordered w-full"
-              @blur="handleNameChange"
-              @keyup.enter="handleNameChange"
-            />
+        <div v-if="selectedProfile" class="flex flex-col gap-4">
+          <h3 class="text-lg font-semibold text-base-content">
+            Ajustes de "{{ selectedProfile.name }}"
+          </h3>
+
+          <div class="space-y-4">
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Nombre del perfil</span>
+              </label>
+              <input
+                v-model="profileName"
+                type="text"
+                class="input input-bordered"
+                @blur="handleNameChange"
+                @keyup.enter="handleNameChange"
+              />
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Columnas del grid</span>
+              </label>
+              <input
+                v-model.number="gridCols"
+                type="number"
+                min="3"
+                max="8"
+                class="input input-bordered"
+                @blur="handleGridColsChange"
+                @keyup.enter="handleGridColsChange"
+              />
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Filas del grid</span>
+              </label>
+              <input
+                v-model.number="gridRows"
+                type="number"
+                min="2"
+                max="6"
+                class="input input-bordered"
+                @blur="handleGridRowsChange"
+                @keyup.enter="handleGridRowsChange"
+              />
+            </div>
           </div>
-          
-          <div class="form-group">
-            <label class="form-label">Columnas del grid</label>
-            <input 
-              v-model.number="gridCols" 
-              type="number" 
-              min="3" 
-              max="8" 
-              class="input input-bordered w-full"
-              @blur="handleGridColsChange"
-              @keyup.enter="handleGridColsChange"
-            />
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">Filas del grid</label>
-            <input 
-              v-model.number="gridRows" 
-              type="number" 
-              min="2" 
-              max="6" 
-              class="input input-bordered w-full"
-              @blur="handleGridRowsChange"
-              @keyup.enter="handleGridRowsChange"
-            />
-          </div>
-          
-          <div class="form-actions">
-            <button 
-              @click="deleteProfile" 
-              class="btn btn-error btn-sm"
+
+          <div class="mt-auto pt-4 border-t border-base-300">
+            <button
+              @click="deleteProfile"
+              class="btn btn-outline btn-error btn-sm w-full"
               :disabled="profiles.length <= 1"
             >
               Eliminar Perfil
@@ -78,43 +101,53 @@
           </div>
         </div>
       </div>
-      
-      <div class="modal-actions">
-        <button @click="closeModal" class="btn">Cerrar</button>
+
+      <!-- Footer -->
+      <div class="flex justify-end gap-3 pt-4 border-t border-base-300">
+        <button @click="closeModal" class="btn btn-ghost">
+          Cerrar
+        </button>
       </div>
     </div>
-    
+
     <!-- Create Profile Modal -->
     <div v-if="showCreateModal" class="create-profile-overlay show">
-      <div class="create-profile-modal">
-        <h3 class="font-bold text-lg mb-4">Crear Nuevo Perfil</h3>
-        <label class="form-control w-full">
-          <div class="label">
+      <div class="bg-base-100 rounded-lg p-6 shadow-xl max-w-md w-full mx-4">
+        <h3 class="text-lg font-bold mb-4">Crear Nuevo Perfil</h3>
+
+        <div class="form-control mb-6">
+          <label class="label">
             <span class="label-text">Nombre del perfil</span>
-          </div>
-          <input 
-            v-model="newProfileName" 
-            type="text" 
+          </label>
+          <input
+            v-model="newProfileName"
+            type="text"
             placeholder="Ej: Gaming, Trabajo, Streaming..."
-            class="input input-bordered w-full" 
+            class="input input-bordered"
             @keyup.enter="handleCreateProfile"
           />
-        </label>
-        <div class="modal-action">
-          <button @click="showCreateModal = false" class="btn">Cancelar</button>
-          <button @click="handleCreateProfile" class="btn btn-primary" :disabled="!newProfileName.trim()">
+        </div>
+
+        <div class="flex justify-end gap-3">
+          <button @click="showCreateModal = false" class="btn btn-ghost">
+            Cancelar
+          </button>
+          <button
+            @click="handleCreateProfile"
+            class="btn btn-accent"
+            :disabled="!newProfileName.trim()"
+          >
             Crear
           </button>
         </div>
       </div>
     </div>
-  </Modal>
+  </dialog>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { Plus } from 'lucide-vue-next'
-import Modal from './Modal.vue'
 import type { ProfileData } from '../types/streamdeck'
 
 interface Props {
@@ -132,7 +165,8 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-const modal = ref<InstanceType<typeof Modal> | null>(null)
+const dialog = ref<HTMLDialogElement | null>(null)
+const isClosing = ref(false)
 const showCreateModal = ref(false)
 const newProfileName = ref('')
 const selectedProfileId = ref(props.selectedProfile)
@@ -227,15 +261,41 @@ const deleteProfile = () => {
 }
 
 const showModal = () => {
-  modal.value?.showModal()
+  isClosing.value = false
+  dialog.value?.showModal()
   if (props.selectedProfile) {
     selectProfile(props.selectedProfile)
   }
 }
 
 const closeModal = () => {
-  modal.value?.closeModal()
+  if (isClosing.value) return
+  
+  isClosing.value = true
+  dialog.value?.classList.add('closing')
+  
+  // Esperar a que termine la animación antes de cerrar realmente
+  setTimeout(() => {
+    dialog.value?.close()
+    dialog.value?.classList.remove('closing')
+    isClosing.value = false
+  }, 500) // 500ms es la duración de la transición
 }
+
+// Cerrar modal al hacer clic en el backdrop
+onMounted(() => {
+  dialog.value?.addEventListener('click', (e) => {
+    const rect = dialog.value!.getBoundingClientRect()
+    if (
+      e.clientX < rect.left ||
+      e.clientX > rect.right ||
+      e.clientY < rect.top ||
+      e.clientY > rect.bottom
+    ) {
+      closeModal()
+    }
+  })
+})
 
 watch(() => props.selectedProfile, (newVal) => {
   if (newVal) {
@@ -251,150 +311,80 @@ defineExpose({
 </script>
 
 <style scoped>
+/* Modal Dialog */
 .profile-settings-modal {
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: 1rem;
+  padding: 0;
+  background-color: #1f2937;
+  max-width: 90vw;
+  width: 800px;
+  max-height: 90vh;
+  opacity: 0;
+  transform: scale(0.95) translateY(-1rem);
+  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    overlay 0.5s cubic-bezier(0.4, 0, 0.2, 1) allow-discrete,
+    display 0.5s cubic-bezier(0.4, 0, 0.2, 1) allow-discrete;
+  margin: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3),
+    0 8px 10px -6px rgba(0, 0, 0, 0.2);
+}
+
+.profile-settings-modal[open] {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.profile-settings-modal.closing {
+  opacity: 0;
+  transform: scale(0.95) translateY(-1rem);
+}
+
+@starting-style {
+  .profile-settings-modal[open] {
+    opacity: 0;
+    transform: scale(0.95) translateY(-1rem);
+  }
+}
+
+/* Backdrop styles */
+.profile-settings-modal::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    display 0.5s allow-discrete,
+    overlay 0.5s allow-discrete;
+}
+
+.profile-settings-modal[open]::backdrop {
+  opacity: 1;
+}
+
+.profile-settings-modal.closing::backdrop {
+  opacity: 0;
+}
+
+@starting-style {
+  .profile-settings-modal[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+/* Modal Content */
+.modal-content {
+  padding: 2rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}
-
-.modal-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #f9fafb;
-  margin: 0;
-  text-align: center;
-}
-
-.modal-body {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 2rem;
-  min-height: 400px;
-}
-
-.profiles-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.profiles-list h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #f9fafb;
-  margin: 0;
-}
-
-.profiles-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  max-height: 300px;
+  align-items: stretch;
+  background-color: #1f2937;
+  max-height: 80vh;
   overflow-y: auto;
 }
 
-.profile-item {
-  padding: 0.75rem 1rem;
-  background-color: #374151;
-  border-radius: 0.5rem;
-  color: #f9fafb;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.profile-item:hover {
-  background-color: #4b5563;
-}
-
-.profile-item.active {
-  background-color: #3b82f6;
-  color: white;
-}
-
-.profile-settings {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.profile-settings h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #f9fafb;
-  margin: 0;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #d1d5db;
-}
-
-.input {
-  background-color: #374151;
-  border: 1px solid #4b5563;
-  border-radius: 0.375rem;
-  color: #f9fafb;
-  padding: 0.5rem 0.75rem;
-}
-
-.input:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-}
-
-.form-actions {
-  margin-top: auto;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding-top: 1rem;
-  border-top: 1px solid #374151;
-}
-
-.btn {
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  border: none;
-  cursor: pointer;
-}
-
-.btn-primary {
-  background-color: #3b82f6;
-  color: white;
-}
-
-.btn-primary:hover {
-  background-color: #2563eb;
-}
-
-.btn-error {
-  background-color: #dc2626;
-  color: white;
-}
-
-.btn-error:hover {
-  background-color: #b91c1c;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
+/* Create Profile Overlay */
 .create-profile-overlay {
   position: fixed;
   top: 0;
@@ -413,29 +403,5 @@ defineExpose({
 
 .create-profile-overlay.show {
   opacity: 1;
-}
-
-.create-profile-modal {
-  background-color: #1f2937;
-  padding: 2rem;
-  border-radius: 1rem;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-  max-width: 400px;
-  width: 90%;
-  transform: scale(0.95) translateY(-1rem);
-  opacity: 0;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.create-profile-overlay.show .create-profile-modal {
-  transform: scale(1) translateY(0);
-  opacity: 1;
-}
-
-.modal-action {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
 }
 </style>

@@ -61,6 +61,7 @@ defineExpose({
   background-color: #1f2937;
   max-width: 90vw;
   width: 800px;
+  max-height: 90vh;
   opacity: 0;
   transform: scale(0.95) translateY(-1rem);
   transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
