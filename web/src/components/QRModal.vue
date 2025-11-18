@@ -22,7 +22,7 @@
       </div>
       
       <div class="modal-buttons">
-        <button @click="copyUrl" class="modal-action">
+        <button @click="copyUrl" class="modal-action mt-0">
           <Copy :size="16" />
           Copiar URL
         </button>

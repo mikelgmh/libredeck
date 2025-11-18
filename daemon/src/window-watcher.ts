@@ -126,6 +126,7 @@ class WindowWatcher extends EventEmitter {
   }
 
   private async checkDefaultProfileSwitch(window: WindowInfo | null) {
+    console.log('Checking for default profile switch...');
     try {
       // Get default profile from database
       const response = await fetch('http://localhost:3001/api/v1/profiles')
