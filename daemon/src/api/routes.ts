@@ -554,7 +554,8 @@ export async function setupAPIRoutes(
           
           // Connect window watcher events to WebSocket for profile switching
           services.windowWatcher.on('profile-switch', (profileId: string, window: any) => {
-            console.log('👤 Auto-switching to profile:', profileId, 'due to window:', window.title);
+            // Update current profile in window watcher
+            services.windowWatcher.setCurrentProfile(profileId);
             services.wsManager?.broadcast('profile.navigate', { profileId }, 'profiles');
           });
           

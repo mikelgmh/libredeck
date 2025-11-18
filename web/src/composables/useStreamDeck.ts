@@ -257,6 +257,45 @@ export function useStreamDeck() {
         }
       }
 
+      // Ensure there's always a default profile
+      const hasDefaultProfile = profiles.value.some(p => {
+        let data = p.data
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data)
+          } catch {
+            data = {}
+          }
+        }
+        return data?.isDefault === true
+      })
+
+      if (!hasDefaultProfile && profiles.value.length > 0) {
+        // Mark the first profile as default
+        const firstProfile = profiles.value[0]
+        let data = firstProfile.data
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data)
+          } catch {
+            data = {}
+          }
+        }
+        const updatedData = { ...data, isDefault: true }
+        
+        await apiRequest(`/profiles/${firstProfile.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: firstProfile.name,
+            data: updatedData
+          })
+        })
+        
+        // Update local data
+        firstProfile.data = updatedData
+        console.log('Marked first profile as default:', firstProfile.id)
+      }
+
       // Try to restore saved profile first
       const savedProfileId = getSelectedProfile()
       if (savedProfileId && profiles.value.find(p => p.id === savedProfileId)) {
@@ -702,7 +741,10 @@ export function useStreamDeck() {
     try {
       const newProfile = await apiRequest('/profiles', {
         method: 'POST',
-        body: JSON.stringify({ name: name.trim() })
+        body: JSON.stringify({ 
+          name: name.trim(),
+          data: {} // New profiles are not default
+        })
       })
 
       // Create default page for new profile
@@ -761,6 +803,21 @@ export function useStreamDeck() {
 
   const deleteProfile = async (profileId: string) => {
     try {
+      // Check if we're deleting the default profile
+      const profileToDelete = profiles.value.find(p => p.id === profileId)
+      let wasDefault = false
+      if (profileToDelete) {
+        let data = profileToDelete.data
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data)
+          } catch {
+            data = {}
+          }
+        }
+        wasDefault = data?.isDefault === true
+      }
+
       await apiRequest(`/profiles/${profileId}`, {
         method: 'DELETE'
       })
@@ -769,6 +826,32 @@ export function useStreamDeck() {
       const index = profiles.value.findIndex(p => p.id === profileId)
       if (index > -1) {
         profiles.value.splice(index, 1)
+      }
+
+      // If we deleted the default profile, mark another one as default
+      if (wasDefault && profiles.value.length > 0) {
+        const newDefaultProfile = profiles.value[0]
+        let data = newDefaultProfile.data
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data)
+          } catch {
+            data = {}
+          }
+        }
+        const updatedData = { ...data, isDefault: true }
+        
+        await apiRequest(`/profiles/${newDefaultProfile.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: newDefaultProfile.name,
+            data: updatedData
+          })
+        })
+        
+        // Update local data
+        newDefaultProfile.data = updatedData
+        console.log('Marked new default profile:', newDefaultProfile.id)
       }
 
       // If this was the selected profile, select another one

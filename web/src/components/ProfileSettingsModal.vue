@@ -99,7 +99,7 @@
             <button
               @click="deleteProfile"
               class="btn btn-outline btn-error btn-sm w-full"
-              :disabled="profiles.length <= 1"
+              :disabled="isDefaultProfile"
             >
               Eliminar Perfil
             </button>
@@ -182,6 +182,19 @@ const gridRows = ref(3)
 
 const selectedProfile = computed(() => {
   return props.profiles.find(p => p.id === selectedProfileId.value)
+})
+
+const isDefaultProfile = computed(() => {
+  if (!selectedProfile.value) return false
+  let data = selectedProfile.value.data
+  if (typeof data === 'string') {
+    try {
+      data = JSON.parse(data)
+    } catch {
+      data = {}
+    }
+  }
+  return data?.isDefault === true
 })
 
 const selectProfile = (profileId: string) => {

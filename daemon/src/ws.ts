@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { DatabaseService } from './db';
+import { windowWatcher } from './window-watcher';
 
 export interface WebSocketMessage {
   type: string;
@@ -60,7 +61,6 @@ export class WebSocketManager {
           };
 
           this.clients.set(clientId, client);
-          console.log(`📱 WebSocket client connected: ${clientId}`);
 
           // Enviar mensaje de bienvenida
           ws.send(JSON.stringify({
@@ -72,13 +72,11 @@ export class WebSocketManager {
           const clientData = this.getClientByWs(ws);
           if (clientData) {
             this.clients.delete(clientData.id);
-            console.log(`📱 WebSocket client disconnected: ${clientData.id}`);
           }
         }
       }
     });
 
-    console.log('🔌 WebSocket server initialized');
   }
 
   private getClientByWs(ws: any): WebSocketClient | null {
@@ -93,8 +91,6 @@ export class WebSocketManager {
   private handleClientMessage(clientId: string, message: WebSocketMessage) {
     const client = this.clients.get(clientId);
     if (!client) return;
-
-    console.log(`📨 Received message from ${clientId}:`, message.type);
 
     switch (message.type) {
       case 'subscribe':
@@ -125,6 +121,8 @@ export class WebSocketManager {
 
       case 'profile.select':
         const { profileId } = message.payload;
+        // Update current profile in window watcher
+        windowWatcher.setCurrentProfile(profileId);
         // Broadcast to all other subscribed clients (exclude sender)
         this.clients.forEach((otherClient, otherClientId) => {
           if (otherClientId !== clientId && otherClient.subscriptions.has('profiles')) {
@@ -138,7 +136,6 @@ export class WebSocketManager {
         break;
 
       default:
-        console.warn(`Unknown message type: ${message.type}`);
         this.sendToClient(clientId, {
           type: 'error',
           payload: { message: `Unknown message type: ${message.type}` }
@@ -158,8 +155,6 @@ export class WebSocketManager {
       type: 'subscribed',
       payload: { topics, subscriptions: Array.from(client.subscriptions) }
     });
-
-    console.log(`📡 Client ${clientId} subscribed to:`, topics);
   }
 
   private handleUnsubscription(clientId: string, topics: string[]) {
@@ -229,8 +224,6 @@ export class WebSocketManager {
 
       this.sendToClient(clientId, message);
     });
-
-    console.log(`📡 Broadcast ${eventType} to ${this.clients.size} clients`);
   }
 
   public broadcastProfileUpdate(profileId: string, profile: any): void {
@@ -286,6 +279,5 @@ export class WebSocketManager {
     if (this.server) {
       this.server.stop();
     }
-    console.log('🔌 WebSocket server closed');
   }
 }

@@ -51,21 +51,15 @@ class LibreDeckDaemon {
       if (autoProfileConfig) {
         const config = JSON.parse(autoProfileConfig);
         if (config.enabled && config.rules && config.rules.length > 0) {
-          console.log('🔄 Starting auto-profile switching with saved configuration');
-          console.log('📋 Loaded rules:', config.rules.length);
-          
           // Connect window watcher events to WebSocket
           windowWatcher.on('profile-switch', (profileId: string, window: any) => {
-            console.log('👤 Auto-switching to profile:', profileId, 'due to window:', window.title);
+            // Update current profile in window watcher
+            windowWatcher.setCurrentProfile(profileId);
             this.wsManager?.broadcast('profile.navigate', { profileId }, 'profiles');
           });
           
           windowWatcher.startWatching(config.rules);
-        } else {
-          console.log('ℹ️ Auto-profile switching disabled or no rules configured');
         }
-      } else {
-        console.log('ℹ️ No auto-profile configuration found');
       }
     } catch (error) {
       console.error('❌ Failed to initialize auto-profile switching:', error);

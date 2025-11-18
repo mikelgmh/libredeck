@@ -22,6 +22,7 @@ class WindowWatcher extends EventEmitter {
   private intervalId: NodeJS.Timeout | null = null
   private rules: AutoSwitchRule[] = []
   private isWatching = false
+  private currentProfileId: string | null = null
 
   constructor() {
     super()
@@ -39,47 +40,24 @@ class WindowWatcher extends EventEmitter {
         const currentWindow = await this.getActiveWindow()
 
         if (this.hasWindowChanged(currentWindow)) {
-          console.log('🔄 Window changed detected')
-          console.log('📋 Previous window:', this.activeWindow ? {
-            title: this.activeWindow.title.substring(0, 50) + (this.activeWindow.title.length > 50 ? '...' : ''),
-            processName: this.activeWindow.processName,
-            executablePath: this.activeWindow.executablePath?.split('\\').pop() || 'Unknown'
-          } : 'None')
-          
           this.activeWindow = currentWindow
-          
-          console.log('🖥️ New active window:', currentWindow ? {
-            title: currentWindow.title.substring(0, 50) + (currentWindow.title.length > 50 ? '...' : ''),
-            processName: currentWindow.processName,
-            executablePath: currentWindow.executablePath?.split('\\').pop() || 'Unknown',
-            hwnd: currentWindow.hwnd
-          } : 'None')
           
           this.emit('window-changed', currentWindow)
 
           // Check if we need to switch profiles
-          console.log('🔍 Checking for matching auto-switch rules...')
           const matchingRule = this.findMatchingRule(currentWindow)
           
           if (matchingRule) {
-            console.log('✅ Found matching rule:', {
-              ruleId: matchingRule.id,
-              profileId: matchingRule.profileId,
-              executablePath: matchingRule.executablePath?.split('\\').pop() || 'Unknown',
-              processName: matchingRule.processName,
-              windowTitleFilter: matchingRule.windowTitleFilter
-            })
             this.emit('profile-switch', matchingRule.profileId, currentWindow)
           } else {
-            console.log('❌ No matching auto-switch rule found for current window')
+            // No matching rule found, check if we should switch to default profile
+            this.checkDefaultProfileSwitch(currentWindow)
           }
         }
       } catch (error) {
-        console.error('❌ Error in window watcher:', error)
+        console.error('Error in window watcher:', error)
       }
     }, 500)
-
-    console.log('🖥️ Window watcher started')
   }
 
   stopWatching() {
@@ -89,19 +67,14 @@ class WindowWatcher extends EventEmitter {
     }
     this.isWatching = false
     this.activeWindow = null
-    console.log('🖥️ Window watcher stopped')
   }
 
   updateRules(rules: AutoSwitchRule[]) {
     this.rules = rules
-    console.log('📋 Auto-switch rules updated:', rules.map(rule => ({
-      id: rule.id,
-      profileId: rule.profileId,
-      executablePath: rule.executablePath,
-      processName: rule.processName,
-      windowTitleFilter: rule.windowTitleFilter,
-      enabled: rule.enabled
-    })))
+  }
+
+  setCurrentProfile(profileId: string) {
+    this.currentProfileId = profileId
   }
 
   isActive(): boolean {
@@ -150,6 +123,33 @@ class WindowWatcher extends EventEmitter {
 
       return true
     }) || null
+  }
+
+  private async checkDefaultProfileSwitch(window: WindowInfo | null) {
+    try {
+      // Get default profile from database
+      const response = await fetch('http://localhost:3001/api/v1/profiles')
+      if (response.ok) {
+        const profiles = await response.json()
+        const defaultProfile = profiles.find((p: any) => {
+          let data = p.data
+          if (typeof data === 'string') {
+            try {
+              data = JSON.parse(data)
+            } catch {
+              data = {}
+            }
+          }
+          return data?.isDefault === true
+        })
+        
+        if (defaultProfile && defaultProfile.id !== this.currentProfileId) {
+          this.emit('profile-switch', defaultProfile.id, window)
+        }
+      }
+    } catch (error) {
+      // Ignore errors when checking default profile
+    }
   }
 
   private async getActiveWindow(): Promise<WindowInfo | null> {
