@@ -9,6 +9,7 @@
       :selectedButton="selectedButton"
       :buttonConfig="buttonConfig"
       :plugins="plugins"
+      :availablePages="availablePages"
       @profile-changed="handleProfileChange"
       @profile-created="handleProfileCreate"
       @update-button-label="updateButtonLabel"
@@ -55,10 +56,20 @@
         @swap="handleSwap"
         @grid-size-change="changeGridSize"
       />
+
+      <!-- Page Navigation -->
+      <PageNavigation
+        :currentPage="currentPage"
+        :pages="currentPages"
+        @page-selected="handlePageSelected"
+        @page-created="handlePageCreated"
+      />
     </div>
 
     <!-- Sidebar Derecho - Biblioteca de Acciones -->
-    <ActionsRightSidebar />
+    <ActionsRightSidebar 
+      :plugins="plugins"
+    />
     
     <!-- QR Modal -->
     <QRModal ref="qrModal" />
@@ -77,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { useStreamDeck } from '../composables/useStreamDeck'
 import Sidebar from './Sidebar.vue'
 import Toolbar from './Toolbar.vue'
@@ -85,6 +96,7 @@ import StreamDeckGrid from './StreamDeckGrid.vue'
 import ActionsRightSidebar from './ActionsRightSidebar.vue'
 import QRModal from './QRModal.vue'
 import ProfileSettingsModal from './ProfileSettingsModal.vue'
+import PageNavigation from './PageNavigation.vue'
 
 // QR Modal ref
 const qrModal = ref<InstanceType<typeof QRModal> | null>(null)
@@ -139,6 +151,7 @@ const {
   selectedProfile,
   currentProfile,
   currentPage,
+  currentPages,
   currentButtons,
   plugins,
   gridCols,
@@ -166,6 +179,9 @@ const {
   createProfile,
   updateProfile,
   deleteProfile,
+  selectPage,
+  createPage,
+  deletePage,
   changeGridSize,
   handleSwap,
   debouncedSave,
@@ -176,6 +192,13 @@ const {
   isSaving,
   saveTimeout
 } = useStreamDeck()
+
+// Computed properties
+const availablePages = computed(() => {
+  return currentPages.value
+    .filter(page => page.is_folder === 0)
+    .map(page => ({ id: page.id, name: page.name }))
+})
 
 // Event handlers for child components
 const handleProfileChange = (profileId: string) => {
@@ -192,6 +215,15 @@ const handleProfileUpdate = async (profileId: string, updates: any) => {
 
 const handleProfileDeleted = async (profileId: string) => {
   await deleteProfile(profileId)
+}
+
+// Page event handlers
+const handlePageSelected = async (pageId: string) => {
+  await selectPage(pageId)
+}
+
+const handlePageCreated = async (name: string, isFolder: boolean) => {
+  await createPage(name, isFolder)
 }
 
 // Estas funciones actualizan buttonConfig directamente, lo que dispara el watch

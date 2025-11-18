@@ -25,12 +25,13 @@ export class OpenAppPlugin {
             version: '1.0.0',
             description: 'Abre aplicaciones o archivos en el sistema',
             author: 'LibreDeck',
-            native: true,
+            permissions: ['filesystem', 'process'],
             actions: [
                 {
                     id: 'open-app',
                     name: 'Abrir Aplicación/Archivo',
                     description: 'Abre una aplicación o archivo seleccionado',
+                    icon: 'AppWindow',
                     schema: {
                         type: 'object',
                         properties: {

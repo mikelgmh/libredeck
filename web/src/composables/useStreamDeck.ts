@@ -11,6 +11,7 @@ export function useStreamDeck() {
   const selectedProfile = ref('')
   const currentProfile = ref<ProfileData | null>(null)
   const currentPage = ref<PageData | null>(null)
+  const currentPages = ref<PageData[]>([])
   const currentButtons = ref<ButtonEntity[]>([])
   const plugins = ref<any[]>([])
 
@@ -35,6 +36,9 @@ export function useStreamDeck() {
 
   // WebSocket
   let ws: WebSocket | null = null
+
+  // Flag to prevent infinite loops when receiving page change broadcasts
+  const isRemotePageChange = ref(false)
 
   // Get dynamic base URLs based on current host
   const getApiBase = () => {
@@ -137,7 +141,7 @@ export function useStreamDeck() {
 
         ws?.send(JSON.stringify({
           type: 'subscribe',
-          payload: { topics: ['profiles', 'buttons', 'actions', 'plugins'] }
+          payload: { topics: ['profiles', 'buttons', 'actions', 'plugins', 'page'] }
         }))
       }
 
@@ -160,7 +164,7 @@ export function useStreamDeck() {
     }
   }
 
-  const handleWebSocketMessage = (message: any) => {
+  const handleWebSocketMessage = async (message: any) => {
     switch (message.type) {
       case 'profile.updated':
         loadProfiles()
@@ -184,6 +188,14 @@ export function useStreamDeck() {
         if (currentPage.value && !isSwapping.value) {
           loadButtons()
         }
+        break
+      case 'page.navigate':
+        console.log('🧭 Page navigation requested:', message.payload)
+        isRemotePageChange.value = true
+        if (message.payload.pageId) {
+          await selectPage(message.payload.pageId)
+        }
+        isRemotePageChange.value = false
         break
       case 'action.finished':
         // Remove executing state after action completes
@@ -247,6 +259,9 @@ export function useStreamDeck() {
       if (selectedProfile.value) {
         await loadProfile()
       }
+
+      // Load plugins
+      await loadPlugins()
     } catch (error) {
       console.error('Failed to load profiles:', error)
     }
@@ -298,8 +313,12 @@ export function useStreamDeck() {
       }
 
       const pages = await apiRequest(`/pages?profileId=${selectedProfile.value}`)
-      if (pages.length > 0) {
-        currentPage.value = pages[0]
+      currentPages.value = pages
+
+      // Load first non-folder page as current page, or first page if no non-folder pages exist
+      const firstPage = pages.find(p => p.is_folder === 0) || pages[0]
+      if (firstPage) {
+        currentPage.value = firstPage
         await loadButtons()
       } else {
         // Create default page
@@ -309,9 +328,11 @@ export function useStreamDeck() {
             profile_id: selectedProfile.value,
             name: 'Página Principal',
             order_idx: 0,
+            is_folder: 0,
             data: { gridCols: gridCols.value, gridRows: gridRows.value }
           })
         })
+        currentPages.value = [currentPage.value]
         currentButtons.value = []
       }
     } catch (error) {
@@ -319,16 +340,29 @@ export function useStreamDeck() {
     }
   }
 
+  const loadPlugins = async () => {
+    try {
+      const pluginData = await apiRequest('/plugins/actions')
+      plugins.value = pluginData
+      console.log('🔌 Loaded plugins:', plugins.value)
+    } catch (error) {
+      console.error('Failed to load plugins:', error)
+    }
+  }
+
   const loadButtons = async () => {
-    if (!currentPage.value) return
+    if (!currentPage.value) {
+      console.log('⚠️ No current page selected, cannot load buttons')
+      return
+    }
 
     try {
       const buttons = await apiRequest(`/buttons?pageId=${currentPage.value.id}`)
-      console.log('📥 Loaded buttons from API:', buttons)
-      console.log('📍 Button positions:', buttons.map((b: any) => ({ id: b.id, position: b.position, label: b.data?.label })))
       currentButtons.value = buttons
+      console.log(`🔘 Loaded ${buttons.length} buttons for page ${currentPage.value.name}`)
     } catch (error) {
       console.error('Failed to load buttons:', error)
+      currentButtons.value = []
     }
   }
 
@@ -630,6 +664,10 @@ export function useStreamDeck() {
         return { keys: '' }
       case 'multimedia':
         return { action: 'playpause' }
+      case 'page':
+        return { pageId: '', pageName: '' }
+      case 'delay':
+        return { duration: 1000 }
       default:
         return {}
     }
@@ -728,6 +766,112 @@ export function useStreamDeck() {
       console.log('✅ Profile deleted successfully')
     } catch (error) {
       console.error('❌ Failed to delete profile:', error)
+      throw error
+    }
+  }
+
+  // Page management functions
+  const selectPage = async (pageId: string) => {
+    const page = currentPages.value.find(p => p.id === pageId)
+    if (!page) {
+      console.error('Page not found:', pageId)
+      return
+    }
+
+    // Save current page's button config before switching
+    if (selectedButton.value !== null && currentPage.value) {
+      const currentButton = getButton(selectedButton.value)
+      if (currentButton) {
+        const hasChanges = JSON.stringify(currentButton.data) !== JSON.stringify(buttonConfig.value)
+        if (hasChanges) {
+          await saveButtonConfig()
+        }
+      }
+    }
+
+    currentPage.value = page
+    selectedButton.value = null
+    buttonConfig.value = {
+      label: '',
+      textTop: '',
+      textBottom: '',
+      fontSize: 14,
+      emoji: '',
+      icon: '',
+      backgroundColor: '#374151',
+      textColor: '#f1f5f9',
+      actions: []
+    }
+
+    await loadButtons()
+
+    // Broadcast page change to other devices (only for local changes)
+    if (!isRemotePageChange.value) {
+      ws?.send(JSON.stringify({
+        type: 'page.select',
+        payload: { pageId }
+      }))
+    }
+  }
+
+  const createPage = async (name: string, isFolder: boolean = false) => {
+    if (!selectedProfile.value) {
+      throw new Error('No profile selected')
+    }
+
+    try {
+      const newPage = await apiRequest('/pages', {
+        method: 'POST',
+        body: JSON.stringify({
+          profile_id: selectedProfile.value,
+          name: name.trim(),
+          order_idx: currentPages.value.length,
+          is_folder: isFolder ? 1 : 0,
+          data: { gridCols: gridCols.value, gridRows: gridRows.value }
+        })
+      })
+
+      currentPages.value.push(newPage)
+
+      // If it's not a folder, switch to it
+      if (!isFolder) {
+        await selectPage(newPage.id)
+      }
+
+      return newPage
+    } catch (error) {
+      console.error('Failed to create page:', error)
+      throw error
+    }
+  }
+
+  const deletePage = async (pageId: string) => {
+    try {
+      await apiRequest(`/pages/${pageId}`, {
+        method: 'DELETE'
+      })
+
+      // Remove from local pages
+      const index = currentPages.value.findIndex(p => p.id === pageId)
+      if (index > -1) {
+        currentPages.value.splice(index, 1)
+      }
+
+      // If this was the current page, select another one
+      if (currentPage.value?.id === pageId) {
+        const remainingPages = currentPages.value.filter(p => p.is_folder === 0)
+        if (remainingPages.length > 0) {
+          await selectPage(remainingPages[0].id)
+        } else {
+          currentPage.value = null
+          currentButtons.value = []
+          selectedButton.value = null
+        }
+      }
+
+      console.log('✅ Page deleted successfully')
+    } catch (error) {
+      console.error('❌ Failed to delete page:', error)
       throw error
     }
   }
@@ -913,6 +1057,7 @@ export function useStreamDeck() {
     selectedProfile,
     currentProfile,
     currentPage,
+    currentPages,
     currentButtons,
     plugins,
     gridCols,
@@ -930,6 +1075,7 @@ export function useStreamDeck() {
     loadProfiles,
     loadProfile,
     loadButtons,
+    loadPlugins,
     getButton,
     selectButton,
     executeButton,
@@ -942,6 +1088,9 @@ export function useStreamDeck() {
     createProfile,
     updateProfile,
     deleteProfile,
+    selectPage,
+    createPage,
+    deletePage,
     changeGridSize,
     handleSwap,
     debouncedSave,

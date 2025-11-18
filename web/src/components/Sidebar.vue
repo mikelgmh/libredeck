@@ -35,6 +35,8 @@
           
           <ButtonEditor
             :buttonConfig="buttonConfig"
+            :availablePages="availablePages"
+            :plugins="plugins"
             @update:label="$emit('update-button-label', $event)"
             @update:textTop="$emit('update-button-text-top', $event)"
             @update:textBottom="$emit('update-button-text-bottom', $event)"
@@ -75,6 +77,7 @@ interface Props {
   selectedButton: number | null
   buttonConfig: ButtonData
   plugins: any[]
+  availablePages?: Array<{ id: string; name: string }>
 }
 
 interface Emits {

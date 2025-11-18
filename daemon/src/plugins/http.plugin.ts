@@ -25,12 +25,13 @@ export class HttpPlugin {
             version: '1.0.0',
             description: 'Make HTTP/HTTPS requests to APIs and webhooks',
             author: 'LibreDeck',
-            native: true,
+            permissions: ['http', 'network'],
             actions: [
                 {
                     id: 'http',
                     name: 'HTTP Request',
                     description: 'Make an HTTP request',
+                    icon: 'Globe',
                     schema: {
                         type: 'object',
                         properties: {

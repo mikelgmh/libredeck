@@ -102,6 +102,7 @@ export async function setupAPIRoutes(
           profile_id: body.profile_id,
           name: body.name,
           order_idx: body.order_idx || 0,
+          is_folder: body.is_folder || 0,
           data: body.data || {}
         };
 
@@ -217,6 +218,15 @@ export async function setupAPIRoutes(
 
           if (result.success) {
             services.wsManager.broadcastActionFinished(actionId, result);
+
+            // Check if this is a page navigation action
+            if (result.result && result.result.action === 'navigate_to_page') {
+              services.wsManager.broadcast('page.navigate', {
+                pageId: result.result.pageId,
+                pageName: result.result.pageName,
+                context
+              }, 'page');
+            }
           } else {
             services.wsManager.broadcastActionError(actionId, result.error);
           }
@@ -267,8 +277,22 @@ export async function setupAPIRoutes(
 
     if (path === '/api/v1/plugins/actions') {
       if (method === 'GET') {
-        const actions = Array.from(services.pluginLoader.getPluginActions().entries());
-        return jsonResponse(actions);
+        const loadedPlugins = Array.from(services.pluginLoader.getLoadedPlugins().entries());
+        const pluginActions = Array.from(services.pluginLoader.getPluginActions().entries());
+        
+        // Group actions by plugin
+        const pluginsWithActions = loadedPlugins.map(([pluginId, plugin]) => [
+          pluginId,
+          {
+            manifest: plugin.manifest,
+            enabled: plugin.enabled,
+            actions: pluginActions
+              .filter(([actionId]) => actionId.startsWith(`${pluginId}.`))
+              .map(([actionId, action]) => [actionId.split('.')[1], action])
+          }
+        ]);
+        
+        return jsonResponse(pluginsWithActions);
       }
     }
 

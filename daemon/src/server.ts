@@ -25,6 +25,9 @@ class LibreDeckDaemon {
       this.pluginLoader = new PluginLoader();
       this.actionRunner = new ActionRunner(this.pluginLoader);
 
+      // Cargar plugins
+      await this.pluginLoader.loadAllPlugins();
+
       // Configurar WebSocket
       this.wsManager = new WebSocketManager(WS_PORT);
 

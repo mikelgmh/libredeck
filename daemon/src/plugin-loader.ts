@@ -82,6 +82,68 @@ export class PluginLoader {
   }
 
   public async loadPlugin(pluginId: string): Promise<boolean> {
+    try {
+      // Check if this is a built-in plugin (stored in database)
+      const pluginRecord = this.db.getEnabledPlugins().find(p => p.id === pluginId);
+      
+      if (pluginRecord) {
+        // Load built-in plugin
+        return await this.loadBuiltInPlugin(pluginRecord);
+      } else {
+        // Load external plugin from file system
+        return await this.loadExternalPlugin(pluginId);
+      }
+    } catch (error) {
+      console.error(`Failed to load plugin ${pluginId}:`, error);
+      return false;
+    }
+  }
+
+  private async loadBuiltInPlugin(pluginRecord: any): Promise<boolean> {
+    try {
+      const manifest = JSON.parse(pluginRecord.manifest);
+      
+      if (!this.validateManifest(manifest)) {
+        throw new Error(`Invalid plugin manifest for ${pluginRecord.id}`);
+      }
+
+      // For built-in plugins, we don't need to import them as they're already loaded by ActionRunner
+      // Just register their actions in our action registry
+      
+      // Create loaded plugin record
+      const loadedPlugin: LoadedPlugin = {
+        manifest,
+        module: {
+          register: (api: any) => {
+            // For built-in plugins, the registration happens through ActionRunner
+            console.log(`Built-in plugin ${pluginRecord.id} registered`);
+          }
+        },
+        path: `built-in/${pluginRecord.id}`,
+        enabled: true
+      };
+
+      // Register plugin actions
+      manifest.actions.forEach(action => {
+        const fullActionId = `${pluginRecord.id}.${action.id}`;
+        this.pluginActions.set(fullActionId, {
+          ...action,
+          id: fullActionId
+        });
+      });
+
+      this.loadedPlugins.set(pluginRecord.id, loadedPlugin);
+      
+      console.log(`✓ Loaded built-in plugin: ${manifest.name} v${manifest.version}`);
+      return true;
+      
+    } catch (error) {
+      console.error(`Failed to load built-in plugin ${pluginRecord.id}:`, error);
+      return false;
+    }
+  }
+
+  private async loadExternalPlugin(pluginId: string): Promise<boolean> {
     const pluginPath = `../data/plugins/${pluginId}`;
     
     try {
@@ -136,11 +198,11 @@ export class PluginLoader {
       const pluginAPI = this.createPluginAPI(pluginId);
       module.register(pluginAPI);
       
-      console.log(`✓ Loaded plugin: ${manifest.name} v${manifest.version}`);
+      console.log(`✓ Loaded external plugin: ${manifest.name} v${manifest.version}`);
       return true;
       
     } catch (error) {
-      console.error(`Failed to load plugin ${pluginId}:`, error);
+      console.error(`Failed to load external plugin ${pluginId}:`, error);
       return false;
     }
   }

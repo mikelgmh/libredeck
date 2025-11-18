@@ -109,8 +109,18 @@ export class WebSocketManager {
         this.handleButtonPress(clientId, message.payload);
         break;
 
-      case 'ping':
-        this.sendToClient(clientId, { type: 'pong', payload: { timestamp: Date.now() } });
+      case 'page.select':
+        const { pageId } = message.payload;
+        // Broadcast to all other subscribed clients (exclude sender)
+        this.clients.forEach((otherClient, otherClientId) => {
+          if (otherClientId !== clientId && otherClient.subscriptions.has('page')) {
+            this.sendToClient(otherClientId, {
+              type: 'page.navigate',
+              payload: { pageId },
+              id: uuidv4()
+            });
+          }
+        });
         break;
 
       default:

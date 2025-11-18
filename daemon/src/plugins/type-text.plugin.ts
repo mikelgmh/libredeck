@@ -25,12 +25,13 @@ export class TypeTextPlugin {
             version: '1.0.0',
             description: 'Simulate typing text on the keyboard',
             author: 'LibreDeck',
-            native: true,
+            permissions: ['keyboard', 'input'],
             actions: [
                 {
                     id: 'type',
                     name: 'Type Text',
                     description: 'Simulate typing text character by character',
+                    icon: 'Type',
                     schema: {
                         type: 'object',
                         properties: {

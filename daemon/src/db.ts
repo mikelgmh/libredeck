@@ -15,6 +15,7 @@ export interface Page {
   profile_id: string;
   name: string;
   order_idx: number;
+  is_folder: number; // 1 = folder, 0 = page
   data: any; // JSON layout, grid config
 }
 
@@ -74,6 +75,7 @@ const SQL_SCHEMA = `
     profile_id TEXT NOT NULL,
     name TEXT NOT NULL,
     order_idx INTEGER DEFAULT 0,
+    is_folder INTEGER DEFAULT 0, -- 1 = folder, 0 = page
     data TEXT, -- JSON
     FOREIGN KEY(profile_id) REFERENCES profiles(id) ON DELETE CASCADE
   );
@@ -130,6 +132,9 @@ export async function initDatabase() {
   // Ejecutar schema
   db.exec(SQL_SCHEMA);
 
+  // Run migrations
+  runMigrations(db);
+
   // Insertar configuración por defecto
   const defaultSettings = [
     { key: 'app.version', value: '0.1.0' },
@@ -143,8 +148,78 @@ export async function initDatabase() {
     insertSetting.run(setting.key, setting.value);
   }
 
+  // Instalar plugins integrados
+  await installBuiltInPlugins(db);
+
   console.log('Database initialized at:', dbPath);
 }
+
+function runMigrations(db: Database) {
+  console.log('🔄 Running database migrations...');
+
+  // Migration 1: Add is_folder column to pages table
+  try {
+    const result = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='pages'").get() as { sql: string } | undefined;
+    if (result && !result.sql.includes('is_folder')) {
+      console.log('📝 Adding is_folder column to pages table...');
+      db.exec('ALTER TABLE pages ADD COLUMN is_folder INTEGER DEFAULT 0');
+      console.log('✅ Migration 1 completed: Added is_folder column');
+    } else {
+      console.log('ℹ️ Migration 1 skipped: is_folder column already exists');
+    }
+  } catch (error) {
+    console.error('❌ Migration 1 failed:', error);
+  }
+
+  console.log('✅ Database migrations completed');
+}
+
+async function installBuiltInPlugins(db: Database) {
+  console.log('🔌 Installing built-in plugins...');
+
+  // Import built-in plugins statically to avoid dynamic import issues
+  const { ShellPlugin, HttpPlugin, HotkeyPlugin, TypeTextPlugin, MultimediaPlugin, OpenAppPlugin, PagePlugin, UtilityPlugin } = await import('./plugins/index');
+
+  const builtInPlugins = [
+    { id: 'shell', class: ShellPlugin },
+    { id: 'http', class: HttpPlugin },
+    { id: 'hotkey', class: HotkeyPlugin },
+    { id: 'type-text', class: TypeTextPlugin },
+    { id: 'multimedia', class: MultimediaPlugin },
+    { id: 'open-app', class: OpenAppPlugin },
+    { id: 'page', class: PagePlugin },
+    { id: 'utility', class: UtilityPlugin }
+  ];
+
+  const insertPlugin = db.prepare(`
+    INSERT OR IGNORE INTO plugins (id, name, version, manifest, enabled, installed_at) 
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+
+  for (const pluginInfo of builtInPlugins) {
+    try {
+      const pluginInstance = new pluginInfo.class({ log: () => {} });
+      const manifest = pluginInstance.getManifest();
+
+      insertPlugin.run(
+        manifest.id,
+        manifest.name,
+        manifest.version,
+        JSON.stringify(manifest),
+        1, // enabled
+        Date.now()
+      );
+
+      console.log(`✅ Installed built-in plugin: ${manifest.name}`);
+    } catch (error) {
+      console.error(`❌ Failed to install built-in plugin ${pluginInfo.id}:`, error);
+    }
+  }
+
+  console.log('✅ Built-in plugins installation completed');
+}
+
+// Funciones de utilidad para acceso a datos
 
 export function getDatabase(): Database {
   if (!db) {
@@ -237,10 +312,10 @@ export class DatabaseService {
 
   createPage(page: Page): void {
     const stmt = this.db.prepare(`
-      INSERT INTO pages (id, profile_id, name, order_idx, data) 
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO pages (id, profile_id, name, order_idx, is_folder, data) 
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
-    stmt.run(page.id, page.profile_id, page.name, page.order_idx, JSON.stringify(page.data));
+    stmt.run(page.id, page.profile_id, page.name, page.order_idx, page.is_folder || 0, JSON.stringify(page.data));
   }
 
   // Buttons

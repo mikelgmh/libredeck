@@ -25,12 +25,13 @@ export class ShellPlugin {
             version: '1.0.0',
             description: 'Execute shell commands and scripts',
             author: 'LibreDeck',
-            native: true,
+            permissions: ['shell', 'filesystem'],
             actions: [
                 {
                     id: 'shell',
                     name: 'Shell Command',
                     description: 'Execute a shell command',
+                    icon: 'Terminal',
                     schema: {
                         type: 'object',
                         properties: {

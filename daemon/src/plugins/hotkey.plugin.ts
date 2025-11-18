@@ -25,12 +25,13 @@ export class HotkeyPlugin {
             version: '1.0.0',
             description: 'Simulate keyboard shortcuts and key presses',
             author: 'LibreDeck',
-            native: true,
+            permissions: ['keyboard', 'input'],
             actions: [
                 {
                     id: 'hotkey',
                     name: 'Hotkey',
                     description: 'Simulate a keyboard shortcut',
+                    icon: 'Keyboard',
                     schema: {
                         type: 'object',
                         properties: {

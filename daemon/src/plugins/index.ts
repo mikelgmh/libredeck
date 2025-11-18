@@ -10,6 +10,7 @@ import { UtilityPlugin } from './utility.plugin'
 import { HotkeyPlugin } from './hotkey.plugin'
 import { TypeTextPlugin } from './type-text.plugin'
 import { OpenAppPlugin } from './open-app.plugin'
+import { PagePlugin } from './page.plugin'
 
 export interface NativePlugin {
     getManifest(): any
@@ -41,5 +42,6 @@ export {
     UtilityPlugin,
     HotkeyPlugin,
     TypeTextPlugin,
-    OpenAppPlugin
+    OpenAppPlugin,
+    PagePlugin
 }

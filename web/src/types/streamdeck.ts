@@ -11,6 +11,7 @@ export interface PageData {
     profile_id: string
     name: string
     order_idx: number
+    is_folder: number // 1 = folder, 0 = page
     data: any
 }
 
@@ -40,4 +41,4 @@ export interface ActionConfig {
     parameters: Record<string, any>
 }
 
-export type ActionType = 'shell' | 'http' | 'hotkey' | 'multimedia'
+export type ActionType = 'shell' | 'http' | 'hotkey' | 'multimedia' | 'page'

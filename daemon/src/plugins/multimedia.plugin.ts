@@ -28,12 +28,13 @@ export class MultimediaPlugin {
             version: '1.0.0',
             description: 'Control media playback and system volume',
             author: 'LibreDeck',
-            native: true,
+            permissions: ['multimedia', 'system'],
             actions: [
                 {
                     id: 'multimedia',
                     name: 'Multimedia Control',
                     description: 'Control media playback (play, pause, volume, etc.)',
+                    icon: 'Volume2',
                     schema: {
                         type: 'object',
                         properties: {

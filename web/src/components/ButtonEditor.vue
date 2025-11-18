@@ -106,6 +106,7 @@
             <ActionEditor
               :action="action"
               :index="index"
+              :availablePages="availablePages"
               @update-parameter="(paramKey, value) => updateActionParameter(index, paramKey, value)"
               @remove="() => removeAction(index)"
             />
@@ -140,6 +141,8 @@ let swapyInstance: any = null
 
 interface Props {
   buttonConfig: ButtonData
+  availablePages?: Array<{ id: string; name: string }>
+  plugins?: any[]
 }
 
 interface Emits {

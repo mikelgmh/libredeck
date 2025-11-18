@@ -9,6 +9,7 @@ import {
   HotkeyPlugin,
   TypeTextPlugin,
   OpenAppPlugin,
+  PagePlugin,
   type NativePlugin
 } from './plugins';
 
@@ -70,6 +71,7 @@ export class ActionRunner {
     const hotkeyPlugin = new HotkeyPlugin(pluginContext);
     const typeTextPlugin = new TypeTextPlugin(pluginContext);
     const openAppPlugin = new OpenAppPlugin(pluginContext);
+    const pagePlugin = new PagePlugin(pluginContext);
 
     // Set action executor for utility plugin (for sequence actions)
     utilityPlugin.setActionExecutor(this.executeAction.bind(this));
@@ -81,7 +83,8 @@ export class ActionRunner {
       utilityPlugin,
       hotkeyPlugin,
       typeTextPlugin,
-      openAppPlugin
+      openAppPlugin,
+      pagePlugin
     );
 
     // Register all action handlers from native plugins
@@ -90,7 +93,7 @@ export class ActionRunner {
       const handlers = plugin.getActionHandlers();
 
       for (const [actionType, handler] of handlers.entries()) {
-        this.registerAction(actionType, handler);
+        this.registerAction(`${manifest.id}.${actionType}`, handler);
       }
 
       console.log(`✓ Loaded native plugin: ${manifest.name} v${manifest.version}`);
@@ -196,7 +199,13 @@ export class ActionRunner {
     action: ActionDescriptor,
     context: ActionContext
   ): Promise<ActionResult> {
-    const handler = this.actionHandlers.get(action.type);
+    let handler = this.actionHandlers.get(action.type);
+
+    // Fallback for plugin.action format - try base action type
+    if (!handler && action.type.includes('.')) {
+      const baseType = action.type.split('.')[1];
+      handler = this.actionHandlers.get(baseType);
+    }
 
     if (!handler) {
       throw new Error(`Unknown action type: ${action.type}`);
