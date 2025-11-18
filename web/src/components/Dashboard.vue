@@ -420,6 +420,15 @@ const createProfile = () => {
 
 const selectProfile = async (profile: any) => {
   currentProfile.value = profile
+  
+  // Send WebSocket message to sync profile selection across devices
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'profile.select',
+      payload: { profileId: profile.id }
+    }));
+  }
+  
   try {
     const pages = await apiRequest(`/pages?profileId=${profile.id}`)
     if (pages.length > 0) {

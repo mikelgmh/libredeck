@@ -123,6 +123,20 @@ export class WebSocketManager {
         });
         break;
 
+      case 'profile.select':
+        const { profileId } = message.payload;
+        // Broadcast to all other subscribed clients (exclude sender)
+        this.clients.forEach((otherClient, otherClientId) => {
+          if (otherClientId !== clientId && otherClient.subscriptions.has('profiles')) {
+            this.sendToClient(otherClientId, {
+              type: 'profile.navigate',
+              payload: { profileId },
+              id: uuidv4()
+            });
+          }
+        });
+        break;
+
       default:
         console.warn(`Unknown message type: ${message.type}`);
         this.sendToClient(clientId, {

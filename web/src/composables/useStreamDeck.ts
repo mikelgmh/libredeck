@@ -40,6 +40,9 @@ export function useStreamDeck() {
   // Flag to prevent infinite loops when receiving page change broadcasts
   const isRemotePageChange = ref(false)
 
+  // Flag to prevent infinite loops when receiving profile change broadcasts
+  const isRemoteProfileChange = ref(false)
+
   // Get dynamic base URLs based on current host
   const getApiBase = () => {
     if (typeof window !== 'undefined') {
@@ -196,6 +199,15 @@ export function useStreamDeck() {
           await selectPage(message.payload.pageId)
         }
         isRemotePageChange.value = false
+        break
+      case 'profile.navigate':
+        console.log('👤 Profile navigation requested:', message.payload)
+        isRemoteProfileChange.value = true
+        if (message.payload.profileId) {
+          selectedProfile.value = message.payload.profileId
+          await loadProfile()
+        }
+        isRemoteProfileChange.value = false
         break
       case 'action.finished':
         // Remove executing state after action completes
@@ -674,6 +686,18 @@ export function useStreamDeck() {
   }
 
   // Profile management functions
+  const selectProfile = async (profileId: string) => {
+    selectedProfile.value = profileId
+    await loadProfile()
+
+    // Broadcast profile change to other devices (only for local changes)
+    if (!isRemoteProfileChange.value) {
+      ws?.send(JSON.stringify({
+        type: 'profile.select',
+        payload: { profileId }
+      }))
+    }
+  }
   const createProfile = async (name: string) => {
     try {
       const newProfile = await apiRequest('/profiles', {
@@ -695,9 +719,7 @@ export function useStreamDeck() {
       await loadProfiles()
 
       // Auto-select the new profile
-      selectedProfile.value = newProfile.id
-      saveSelectedProfile(newProfile.id)
-      await loadProfile()
+      await selectProfile(newProfile.id)
 
       return newProfile
     } catch (error) {
@@ -752,9 +774,7 @@ export function useStreamDeck() {
       // If this was the selected profile, select another one
       if (selectedProfile.value === profileId) {
         if (profiles.value.length > 0) {
-          selectedProfile.value = profiles.value[0].id
-          saveSelectedProfile(profiles.value[0].id)
-          await loadProfile()
+          await selectProfile(profiles.value[0].id)
         } else {
           selectedProfile.value = ''
           currentProfile.value = null
@@ -1074,6 +1094,7 @@ export function useStreamDeck() {
     connectWebSocket,
     loadProfiles,
     loadProfile,
+    selectProfile,
     loadButtons,
     loadPlugins,
     getButton,

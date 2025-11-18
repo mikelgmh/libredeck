@@ -168,6 +168,7 @@ const {
   connectWebSocket,
   loadProfiles,
   loadProfile,
+  selectProfile,
   getButton,
   selectButton,
   executeButton,
@@ -201,12 +202,13 @@ const availablePages = computed(() => {
 })
 
 // Event handlers for child components
-const handleProfileChange = (profileId: string) => {
-  selectedProfile.value = profileId
+const handleProfileChange = async (profileId: string) => {
+  await selectProfile(profileId)
 }
 
 const handleProfileCreate = async (name: string) => {
-  await createProfile(name)
+  const newProfile = await createProfile(name)
+  await selectProfile(newProfile.id)
 }
 
 const handleProfileUpdate = async (profileId: string, updates: any) => {
@@ -293,12 +295,6 @@ const handleKeyDown = (event: KeyboardEvent) => {
 }
 
 // Watchers
-watch(selectedProfile, (newProfileId) => {
-  if (newProfileId) {
-    loadProfile()
-  }
-})
-
 watch(selectedButton, (newVal, oldVal) => {
   isChangingButton.value = true
   
