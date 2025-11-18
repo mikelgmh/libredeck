@@ -8,6 +8,7 @@ import {
   UtilityPlugin,
   HotkeyPlugin,
   TypeTextPlugin,
+  OpenAppPlugin,
   type NativePlugin
 } from './plugins';
 
@@ -68,6 +69,7 @@ export class ActionRunner {
     const utilityPlugin = new UtilityPlugin(pluginContext);
     const hotkeyPlugin = new HotkeyPlugin(pluginContext);
     const typeTextPlugin = new TypeTextPlugin(pluginContext);
+    const openAppPlugin = new OpenAppPlugin(pluginContext);
 
     // Set action executor for utility plugin (for sequence actions)
     utilityPlugin.setActionExecutor(this.executeAction.bind(this));
@@ -78,7 +80,8 @@ export class ActionRunner {
       httpPlugin,
       utilityPlugin,
       hotkeyPlugin,
-      typeTextPlugin
+      typeTextPlugin,
+      openAppPlugin
     );
 
     // Register all action handlers from native plugins

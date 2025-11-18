@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Terminal, Globe, Keyboard, Volume2, Type, Play, Pause, SkipForward, SkipBack } from 'lucide-vue-next'
+import { Terminal, Globe, Keyboard, Volume2, Type, Play, Pause, SkipForward, SkipBack, FolderOpen } from 'lucide-vue-next'
 
 interface ActionType {
   type: string
@@ -100,6 +100,13 @@ const availableActions: ActionType[] = [
     description: 'Controla reproducción de audio/video',
     icon: Volume2,
     category: 'Multimedia'
+  },
+  {
+    type: 'open-app',
+    name: 'Abrir Aplicación',
+    description: 'Abre una aplicación o archivo',
+    icon: FolderOpen,
+    category: 'Sistema'
   }
 ]
 

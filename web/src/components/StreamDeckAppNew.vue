@@ -29,11 +29,14 @@
     <div class="flex-1 flex flex-col">
       <!-- Toolbar -->
       <Toolbar
-        :currentProfile="currentProfile"
+        :profiles="profiles"
+        :selectedProfile="selectedProfile"
         :gridCols="gridCols"
         :gridRows="gridRows"
+        @profile-changed="handleProfileChange"
         @grid-size-change="changeGridSize"
         @show-qr="showQRModal"
+        @show-profile-settings="showProfileSettingsModal"
       />
 
       <!-- StreamDeck Grid -->
@@ -59,6 +62,17 @@
     
     <!-- QR Modal -->
     <QRModal ref="qrModal" />
+    
+    <!-- Profile Settings Modal -->
+    <ProfileSettingsModal 
+      ref="profileSettingsModal"
+      :profiles="profiles"
+      :selectedProfile="selectedProfile"
+      @profile-changed="handleProfileChange"
+      @profile-created="handleProfileCreate"
+      @profile-updated="handleProfileUpdate"
+      @profile-deleted="handleProfileDeleted"
+    />
   </div>
 </template>
 
@@ -70,12 +84,20 @@ import Toolbar from './Toolbar.vue'
 import StreamDeckGrid from './StreamDeckGrid.vue'
 import ActionsRightSidebar from './ActionsRightSidebar.vue'
 import QRModal from './QRModal.vue'
+import ProfileSettingsModal from './ProfileSettingsModal.vue'
 
 // QR Modal ref
 const qrModal = ref<InstanceType<typeof QRModal> | null>(null)
 
+// Profile Settings Modal ref
+const profileSettingsModal = ref<InstanceType<typeof ProfileSettingsModal> | null>(null)
+
 const showQRModal = () => {
   qrModal.value?.showModal()
+}
+
+const showProfileSettingsModal = () => {
+  profileSettingsModal.value?.showModal()
 }
 
 // Wake Lock API to keep screen awake
@@ -142,6 +164,8 @@ const {
   reorderActions,
   updateActionParameter,
   createProfile,
+  updateProfile,
+  deleteProfile,
   changeGridSize,
   handleSwap,
   debouncedSave,
@@ -160,6 +184,14 @@ const handleProfileChange = (profileId: string) => {
 
 const handleProfileCreate = async (name: string) => {
   await createProfile(name)
+}
+
+const handleProfileUpdate = async (profileId: string, updates: any) => {
+  await updateProfile(profileId, updates)
+}
+
+const handleProfileDeleted = async (profileId: string) => {
+  await deleteProfile(profileId)
 }
 
 // Estas funciones actualizan buttonConfig directamente, lo que dispara el watch

@@ -112,11 +112,33 @@
         <option value="mute">Silenciar</option>
       </select>
     </div>
+
+    <!-- Open App Action -->
+    <div v-else-if="action.type === 'open-app'" class="space-y-2" data-swapy-no-drag>
+      <div class="flex gap-2">
+        <input 
+          :value="action.parameters.path || ''"
+          @input="updateParameter('path', ($event.target as HTMLInputElement).value)"
+          type="text" 
+          placeholder="Ruta al archivo/aplicación (ej: C:\\Program Files\\App\\app.exe)"
+          class="input input-bordered input-xs flex-1"
+          data-swapy-no-drag
+        />
+        <button 
+          @click="openFileDialog"
+          class="btn btn-ghost btn-xs"
+          title="Seleccionar archivo"
+          data-swapy-no-drag
+        >
+          <FolderOpen :size="14" />
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { X, GripVertical, Trash2 } from 'lucide-vue-next'
+import { X, GripVertical, Trash2, FolderOpen } from 'lucide-vue-next'
 
 interface ActionData {
   id?: string
@@ -139,5 +161,41 @@ const emit = defineEmits<Emits>()
 
 const updateParameter = (paramKey: string, value: any) => {
   emit('update-parameter', paramKey, value)
+}
+
+const openFileDialog = async () => {
+  try {
+    // Construir la URL de la API del daemon
+    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:'
+    const hostname = window.location.hostname
+    const apiUrl = `${protocol}//${hostname}:3001/api/v1/files/select`
+
+    console.log('🔍 Abriendo diálogo de selección de archivos nativo...')
+
+    // Llamar al endpoint que abre el diálogo nativo
+    const response = await fetch(apiUrl)
+
+    if (response.ok) {
+      const result = await response.json()
+
+      if (result.success && result.path) {
+        console.log('✅ Archivo seleccionado:', result.path)
+        // Actualizar el campo con la ruta completa
+        updateParameter('path', result.path)
+
+        alert(`Archivo seleccionado exitosamente:\n\n${result.filename}\n\nRuta: ${result.path}`)
+      } else {
+        console.log('❌ Usuario canceló la selección')
+        // No mostrar mensaje de error si el usuario canceló
+      }
+    } else {
+      const errorText = await response.text()
+      console.error('❌ Error en selección de archivos:', errorText)
+      alert('Error al abrir el diálogo de selección de archivos. Verifica que el daemon esté ejecutándose.')
+    }
+  } catch (error) {
+    console.error('❌ Error de conexión:', error)
+    alert(`Error de conexión: ${error instanceof Error ? error.message : 'Error desconocido'}. Verifica que el daemon esté ejecutándose en el puerto 3001.`)
+  }
 }
 </script>

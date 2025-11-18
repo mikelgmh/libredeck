@@ -668,6 +668,70 @@ export function useStreamDeck() {
     }
   }
 
+  const updateProfile = async (profileId: string, updates: any) => {
+    try {
+      const profile = profiles.value.find(p => p.id === profileId)
+      if (!profile) return
+
+      const updatedProfile = await apiRequest(`/profiles/${profileId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: updates.name || profile.name,
+          data: updates.data || profile.data
+        })
+      })
+
+      // Update local profile
+      const index = profiles.value.findIndex(p => p.id === profileId)
+      if (index > -1) {
+        profiles.value[index] = updatedProfile
+      }
+
+      // If this is the current profile, update currentProfile
+      if (currentProfile.value?.id === profileId) {
+        currentProfile.value = updatedProfile
+      }
+
+      console.log('✅ Profile updated successfully')
+    } catch (error) {
+      console.error('❌ Failed to update profile:', error)
+      throw error
+    }
+  }
+
+  const deleteProfile = async (profileId: string) => {
+    try {
+      await apiRequest(`/profiles/${profileId}`, {
+        method: 'DELETE'
+      })
+
+      // Remove from local profiles
+      const index = profiles.value.findIndex(p => p.id === profileId)
+      if (index > -1) {
+        profiles.value.splice(index, 1)
+      }
+
+      // If this was the selected profile, select another one
+      if (selectedProfile.value === profileId) {
+        if (profiles.value.length > 0) {
+          selectedProfile.value = profiles.value[0].id
+          saveSelectedProfile(profiles.value[0].id)
+          await loadProfile()
+        } else {
+          selectedProfile.value = ''
+          currentProfile.value = null
+          currentPage.value = null
+          currentButtons.value = []
+        }
+      }
+
+      console.log('✅ Profile deleted successfully')
+    } catch (error) {
+      console.error('❌ Failed to delete profile:', error)
+      throw error
+    }
+  }
+
   // Grid management functions
   const changeGridSize = async (deltaX: number, deltaY: number) => {
     let changed = false
@@ -876,6 +940,8 @@ export function useStreamDeck() {
     reorderActions,
     updateActionParameter,
     createProfile,
+    updateProfile,
+    deleteProfile,
     changeGridSize,
     handleSwap,
     debouncedSave,

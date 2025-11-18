@@ -316,6 +316,50 @@ export async function setupAPIRoutes(
       }
     }
 
+    // File selection endpoint
+    if (path === '/api/v1/files/select') {
+      if (method === 'GET') {
+        // Crear un script de PowerShell que abra un diálogo de selección de archivos
+        const powershellScript = `
+          Add-Type -AssemblyName System.Windows.Forms
+          $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+          $openFileDialog.Title = "Seleccionar aplicación o archivo ejecutable"
+          $openFileDialog.Filter = "Archivos ejecutables (*.exe;*.bat;*.cmd;*.lnk)|*.exe;*.bat;*.cmd;*.lnk|Todos los archivos (*.*)|*.*"
+          $openFileDialog.Multiselect = $false
+
+          if ($openFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            Write-Output $openFileDialog.FileName
+          } else {
+            Write-Output ""
+          }
+        `.trim()
+
+        // Ejecutar el script de PowerShell
+        const proc = Bun.spawn({
+          cmd: ['powershell.exe', '-Command', powershellScript],
+          stdio: ['ignore', 'pipe', 'pipe']
+        })
+
+        const output = await new Response(proc.stdout).text()
+        const error = await new Response(proc.stderr).text()
+
+        await proc.exited
+
+        if (proc.exitCode === 0 && output.trim()) {
+          return jsonResponse({
+            success: true,
+            path: output.trim(),
+            filename: output.trim().split('\\').pop()
+          })
+        } else {
+          return jsonResponse({
+            success: false,
+            error: 'Usuario canceló la selección o error en el diálogo'
+          })
+        }
+      }
+    }
+
     // 404 - Route not found
     return jsonResponse({ error: 'API endpoint not found' }, 404);
 
