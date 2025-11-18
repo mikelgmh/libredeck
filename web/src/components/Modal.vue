@@ -10,13 +10,25 @@
 import { ref, onMounted } from 'vue'
 
 const dialog = ref<HTMLDialogElement | null>(null)
+const isClosing = ref(false)
 
 const showModal = () => {
+  isClosing.value = false
   dialog.value?.showModal()
 }
 
 const closeModal = () => {
-  dialog.value?.close()
+  if (isClosing.value) return
+  
+  isClosing.value = true
+  dialog.value?.classList.add('closing')
+  
+  // Esperar a que termine la animación antes de cerrar realmente
+  setTimeout(() => {
+    dialog.value?.close()
+    dialog.value?.classList.remove('closing')
+    isClosing.value = false
+  }, 500) // 500ms es la duración de la transición
 }
 
 // Cerrar modal al hacer clic en el backdrop
@@ -65,6 +77,11 @@ defineExpose({
   transform: scale(1) translateY(0);
 }
 
+.modal.closing {
+  opacity: 0;
+  transform: scale(0.95) translateY(-1rem);
+}
+
 @starting-style {
   .modal[open] {
     opacity: 0;
@@ -84,6 +101,10 @@ defineExpose({
 
 .modal[open]::backdrop {
   opacity: 1;
+}
+
+.modal.closing::backdrop {
+  opacity: 0;
 }
 
 @starting-style {

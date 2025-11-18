@@ -40,31 +40,29 @@ import QrcodeVue from 'qrcode.vue'
 import { Copy } from 'lucide-vue-next'
 
 const dialog = ref<HTMLDialogElement | null>(null)
-const networkUrl = ref('http://localhost:4321')
+const isClosing = ref(false)
 
 const showModal = () => {
+  isClosing.value = false
   dialog.value?.showModal()
 }
 
 const closeModal = () => {
-  dialog.value?.close()
-}
-
-const copyUrl = async () => {
-  try {
-    await navigator.clipboard.writeText(networkUrl.value)
-    console.log('URL copiada al portapapeles')
-  } catch (error) {
-    console.error('Error al copiar URL:', error)
-  }
+  if (isClosing.value) return
+  
+  isClosing.value = true
+  dialog.value?.classList.add('closing')
+  
+  // Esperar a que termine la animación antes de cerrar realmente
+  setTimeout(() => {
+    dialog.value?.close()
+    dialog.value?.classList.remove('closing')
+    isClosing.value = false
+  }, 500) // 500ms es la duración de la transición
 }
 
 // Cerrar modal al hacer clic en el backdrop
 onMounted(() => {
-  // Obtener la URL actual del navegador
-  networkUrl.value = window.location.origin
-  console.log('Network URL:', networkUrl.value)
-  
   dialog.value?.addEventListener('click', (e) => {
     const rect = dialog.value!.getBoundingClientRect()
     if (
@@ -76,6 +74,21 @@ onMounted(() => {
       closeModal()
     }
   })
+})
+
+const copyUrl = async () => {
+  try {
+    await navigator.clipboard.writeText(networkUrl.value)
+    console.log('URL copiada al portapapeles')
+  } catch (error) {
+    console.error('Error al copiar URL:', error)
+  }
+}
+
+// Obtener la URL actual del navegador
+const networkUrl = ref('')
+onMounted(() => {
+  networkUrl.value = window.location.origin
 })
 
 defineExpose({
@@ -109,6 +122,11 @@ defineExpose({
   transform: scale(1) translateY(0);
 }
 
+.qr-modal.closing {
+  opacity: 0;
+  transform: scale(0.95) translateY(-1rem);
+}
+
 @starting-style {
   .qr-modal[open] {
     opacity: 0;
@@ -128,6 +146,10 @@ defineExpose({
 
 .qr-modal[open]::backdrop {
   opacity: 1;
+}
+
+.qr-modal.closing::backdrop {
+  opacity: 0;
 }
 
 @starting-style {

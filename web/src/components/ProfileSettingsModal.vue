@@ -85,7 +85,7 @@
     </div>
     
     <!-- Create Profile Modal -->
-    <div v-if="showCreateModal" class="create-profile-overlay">
+    <div v-if="showCreateModal" class="create-profile-overlay show">
       <div class="create-profile-modal">
         <h3 class="font-bold text-lg mb-4">Crear Nuevo Perfil</h3>
         <label class="form-control w-full">
@@ -402,10 +402,17 @@ defineExpose({
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.create-profile-overlay.show {
+  opacity: 1;
 }
 
 .create-profile-modal {
@@ -415,6 +422,14 @@ defineExpose({
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
   max-width: 400px;
   width: 90%;
+  transform: scale(0.95) translateY(-1rem);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.create-profile-overlay.show .create-profile-modal {
+  transform: scale(1) translateY(0);
+  opacity: 1;
 }
 
 .modal-action {

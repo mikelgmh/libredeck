@@ -1,24 +1,6 @@
 <template>
   <div class="space-y-6">
-    <!-- Actions Library -->
-    <div>
-      <h3 class="text-base font-semibold mb-4">Biblioteca de Acciones</h3>
-      <div class="space-y-2">
-        <div 
-          v-for="actionType in availableActions" 
-          :key="actionType.type"
-          class="card bg-base-300 p-3 cursor-pointer hover:bg-base-300/80 transition-colors"
-        >
-          <div class="flex items-center gap-3">
-            <component :is="actionType.icon" :size="20" class="text-primary" />
-            <div>
-              <div class="font-medium text-sm">{{ actionType.name }}</div>
-              <div class="text-xs text-base-content/70">{{ actionType.description }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+
 
     <!-- Plugins -->
     <div>

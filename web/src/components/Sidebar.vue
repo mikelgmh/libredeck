@@ -17,12 +17,12 @@
     </div>
 
     <!-- Profile Selector -->
-    <ProfileSelector 
+   <!--  <ProfileSelector 
       :profiles="profiles"
       :selectedProfile="selectedProfile"
       @profile-changed="$emit('profile-changed', $event)"
       @profile-created="$emit('profile-created', $event)"
-    />
+    /> -->
 
     <!-- Button Configuration or Actions Library -->
     <div class="flex-1 p-4 overflow-y-auto">
@@ -53,7 +53,7 @@
 
       <!-- Actions Library (when no button selected) -->
       <div v-else>
-        <ActionsLibrary :plugins="plugins" />
+        <!-- <ActionsLibrary :plugins="plugins" /> -->
       </div>
     </div>
   </div>
