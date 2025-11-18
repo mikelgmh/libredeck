@@ -37,15 +37,29 @@ export class TypeTextPlugin {
                         properties: {
                             text: {
                                 type: 'string',
+                                title: 'Texto a escribir',
                                 description: 'Text to type',
-                                default: ''
+                                default: '',
+                                ui: {
+                                    component: 'textarea',
+                                    placeholder: 'Texto a escribir...',
+                                    rows: 3
+                                }
                             },
                             delay: {
                                 type: 'number',
+                                title: 'Delay (ms)',
                                 description: 'Delay between keystrokes in milliseconds',
                                 default: 0,
                                 minimum: 0,
-                                maximum: 1000
+                                maximum: 1000,
+                                ui: {
+                                    component: 'input',
+                                    type: 'number',
+                                    min: 0,
+                                    max: 1000,
+                                    placeholder: '0'
+                                }
                             }
                         },
                         required: ['text']

@@ -40,8 +40,24 @@ export class MultimediaPlugin {
                         properties: {
                             action: {
                                 type: 'string',
+                                title: 'Acción multimedia',
                                 enum: ['play', 'pause', 'playpause', 'stop', 'next', 'previous', 'volumeup', 'volumedown', 'mute'],
-                                description: 'The multimedia action to perform'
+                                default: 'playpause',
+                                description: 'The multimedia action to perform',
+                                ui: {
+                                    component: 'select',
+                                    options: [
+                                        { value: 'play', label: 'Play' },
+                                        { value: 'pause', label: 'Pause' },
+                                        { value: 'playpause', label: 'Play/Pause' },
+                                        { value: 'stop', label: 'Stop' },
+                                        { value: 'next', label: 'Siguiente' },
+                                        { value: 'previous', label: 'Anterior' },
+                                        { value: 'volumeup', label: 'Subir Volumen' },
+                                        { value: 'volumedown', label: 'Bajar Volumen' },
+                                        { value: 'mute', label: 'Silenciar' }
+                                    ]
+                                }
                             }
                         },
                         required: ['action']

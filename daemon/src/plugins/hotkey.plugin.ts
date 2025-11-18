@@ -37,16 +37,26 @@ export class HotkeyPlugin {
                         properties: {
                             keys: {
                                 type: 'string',
-                                description: 'Key to press (e.g., "c", "v", "tab", "f5", "enter")'
+                                title: 'Teclas',
+                                description: 'Key to press (e.g., "c", "v", "tab", "f5", "enter")',
+                                ui: {
+                                    component: 'input',
+                                    type: 'text',
+                                    placeholder: 'ctrl+c, alt+tab, etc'
+                                }
                             },
                             modifiers: {
                                 type: 'array',
+                                title: 'Modificadores',
                                 items: {
                                     type: 'string',
                                     enum: ['ctrl', 'alt', 'shift', 'meta', 'win', 'cmd', 'control', 'option', 'super', 'command']
                                 },
                                 description: 'Modifier keys (use "meta"/"cmd" for Mac Command, "win"/"super" for Windows key)',
-                                default: []
+                                default: [],
+                                ui: {
+                                    component: 'hidden' // Simplified UI - modifiers are parsed from the keys field
+                                }
                             }
                         },
                         required: ['keys']

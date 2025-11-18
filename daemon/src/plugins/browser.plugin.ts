@@ -37,8 +37,14 @@ export class BrowserPlugin {
                         properties: {
                             url: {
                                 type: 'string',
+                                title: 'URL',
                                 description: 'The URL to open',
-                                format: 'uri'
+                                format: 'uri',
+                                ui: {
+                                    component: 'input',
+                                    type: 'url',
+                                    placeholder: 'https://example.com'
+                                }
                             }
                         },
                         required: ['url']

@@ -37,17 +37,31 @@ export class ShellPlugin {
                         properties: {
                             command: {
                                 type: 'string',
-                                description: 'The command to execute'
+                                title: 'Comando',
+                                description: 'The command to execute',
+                                ui: {
+                                    component: 'input',
+                                    type: 'text',
+                                    placeholder: 'comando a ejecutar'
+                                }
                             },
                             args: {
                                 type: 'array',
+                                title: 'Argumentos',
                                 items: { type: 'string' },
                                 description: 'Command arguments',
-                                default: []
+                                default: [],
+                                ui: {
+                                    component: 'hidden' // Hide for simplicity, can be shown in advanced mode
+                                }
                             },
                             cwd: {
                                 type: 'string',
-                                description: 'Working directory for the command'
+                                title: 'Directorio de trabajo',
+                                description: 'Working directory for the command',
+                                ui: {
+                                    component: 'hidden' // Hide for simplicity
+                                }
                             }
                         },
                         required: ['command']

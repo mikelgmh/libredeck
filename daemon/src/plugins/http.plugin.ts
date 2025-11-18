@@ -38,22 +38,47 @@ export class HttpPlugin {
                             url: {
                                 type: 'string',
                                 format: 'uri',
-                                description: 'The URL to request'
+                                title: 'URL',
+                                description: 'The URL to request',
+                                ui: {
+                                    component: 'input',
+                                    type: 'url',
+                                    placeholder: 'https://api.example.com/endpoint'
+                                }
                             },
                             method: {
                                 type: 'string',
+                                title: 'Método',
                                 enum: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
                                 default: 'GET',
-                                description: 'HTTP method'
+                                description: 'HTTP method',
+                                ui: {
+                                    component: 'select',
+                                    options: [
+                                        { value: 'GET', label: 'GET' },
+                                        { value: 'POST', label: 'POST' },
+                                        { value: 'PUT', label: 'PUT' },
+                                        { value: 'DELETE', label: 'DELETE' },
+                                        { value: 'PATCH', label: 'PATCH' }
+                                    ]
+                                }
                             },
                             headers: {
                                 type: 'object',
+                                title: 'Headers',
                                 description: 'HTTP headers',
-                                default: {}
+                                default: {},
+                                ui: {
+                                    component: 'hidden' // Can be shown in advanced mode
+                                }
                             },
                             body: {
+                                title: 'Cuerpo de la petición',
                                 description: 'Request body (for POST/PUT/PATCH)',
-                                default: null
+                                default: null,
+                                ui: {
+                                    component: 'hidden' // Can be shown in advanced mode
+                                }
                             }
                         },
                         required: ['url']

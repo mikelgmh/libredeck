@@ -41,9 +41,18 @@ export class UtilityPlugin {
                         properties: {
                             duration: {
                                 type: 'number',
+                                title: 'Duración (milisegundos)',
                                 description: 'Delay duration in milliseconds',
                                 default: 1000,
-                                minimum: 0
+                                minimum: 0,
+                                maximum: 60000,
+                                ui: {
+                                    component: 'input',
+                                    type: 'number',
+                                    min: 0,
+                                    max: 60000,
+                                    placeholder: '1000'
+                                }
                             }
                         }
                     }

@@ -37,7 +37,13 @@ export class OpenAppPlugin {
                         properties: {
                             path: {
                                 type: 'string',
-                                description: 'Ruta completa al archivo o aplicación a abrir'
+                                title: 'Ruta del archivo/aplicación',
+                                description: 'Ruta completa al archivo o aplicación a abrir',
+                                ui: {
+                                    component: 'file',
+                                    type: 'text',
+                                    placeholder: 'Ruta al archivo/aplicación (ej: C:\\Program Files\\App\\app.exe)'
+                                }
                             }
                         },
                         required: ['path']

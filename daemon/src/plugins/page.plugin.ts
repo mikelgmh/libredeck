@@ -37,11 +37,20 @@ export class PagePlugin {
                         properties: {
                             pageId: {
                                 type: 'string',
-                                description: 'The ID of the page to navigate to'
+                                title: 'Página',
+                                description: 'The ID of the page to navigate to',
+                                ui: {
+                                    component: 'page-select',
+                                    placeholder: 'Seleccionar página...'
+                                }
                             },
                             pageName: {
                                 type: 'string',
-                                description: 'The name of the page (for display purposes)'
+                                title: 'Nombre de página',
+                                description: 'The name of the page (for display purposes)',
+                                ui: {
+                                    component: 'hidden' // Auto-populated when pageId changes
+                                }
                             }
                         },
                         required: ['pageId']

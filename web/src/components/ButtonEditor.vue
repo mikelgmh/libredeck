@@ -106,6 +106,7 @@
             <ActionEditor
               :action="action"
               :index="index"
+              :plugins="plugins"
               :availablePages="availablePages"
               @update-parameter="(paramKey, value) => updateActionParameter(index, paramKey, value)"
               @remove="() => removeAction(index)"
