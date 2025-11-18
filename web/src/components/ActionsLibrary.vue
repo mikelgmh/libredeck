@@ -48,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { Terminal, Globe, Keyboard, Volume2 } from 'lucide-vue-next'
+import { Terminal, Globe, Keyboard, Volume2, Type } from 'lucide-vue-next'
 import type { ActionType } from '../types/streamdeck'
 
 interface Props {
@@ -75,6 +75,12 @@ const availableActions: ActionType[] = [
     name: 'Atajo de Teclado',
     description: 'Simula combinaciones de teclas',
     icon: Keyboard
+  },
+  {
+    type: 'type',
+    name: 'Escribir Texto',
+    description: 'Simula escritura de texto en el teclado',
+    icon: Type
   },
   {
     type: 'multimedia',

@@ -53,6 +53,28 @@
       />
     </div>
 
+    <!-- Type Text Action -->
+    <div v-else-if="action.type === 'type'" class="space-y-2">
+      <textarea 
+        :value="action.parameters.text || ''"
+        @input="updateParameter('text', ($event.target as HTMLTextAreaElement).value)"
+        placeholder="Texto a escribir..."
+        class="textarea textarea-bordered textarea-xs w-full min-h-[80px]"
+      ></textarea>
+      <div class="flex items-center gap-2">
+        <label class="label text-xs">Delay (ms):</label>
+        <input 
+          :value="action.parameters.delay || 0"
+          @input="updateParameter('delay', parseInt(($event.target as HTMLInputElement).value) || 0)"
+          type="number" 
+          min="0"
+          max="1000"
+          placeholder="0"
+          class="input input-bordered input-xs w-20"
+        />
+      </div>
+    </div>
+
     <!-- Multimedia Action -->
     <div v-else-if="action.type === 'multimedia'" class="space-y-2">
       <select 

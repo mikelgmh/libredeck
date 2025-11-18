@@ -8,6 +8,7 @@ import { ShellPlugin } from './shell.plugin'
 import { HttpPlugin } from './http.plugin'
 import { UtilityPlugin } from './utility.plugin'
 import { HotkeyPlugin } from './hotkey.plugin'
+import { TypeTextPlugin } from './type-text.plugin'
 
 export interface NativePlugin {
     getManifest(): any
@@ -37,5 +38,6 @@ export {
     ShellPlugin,
     HttpPlugin,
     UtilityPlugin,
-    HotkeyPlugin
+    HotkeyPlugin,
+    TypeTextPlugin
 }

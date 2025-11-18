@@ -103,6 +103,7 @@
           <li><a @click="() => addAction('shell')"><Terminal :size="16" />Ejecutar Comando</a></li>
           <li><a @click="() => addAction('http')"><Globe :size="16" />Llamada HTTP</a></li>
           <li><a @click="() => addAction('hotkey')"><Keyboard :size="16" />Atajo de Teclado</a></li>
+          <li><a @click="() => addAction('type')"><Type :size="16" />Escribir Texto</a></li>
           <li><a @click="() => addAction('multimedia')"><Volume2 :size="16" />Multimedia</a></li>
         </ul>
       </div>
@@ -111,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import { Plus, Terminal, Globe, Keyboard, Volume2 } from 'lucide-vue-next'
+import { Plus, Terminal, Globe, Keyboard, Volume2, Type } from 'lucide-vue-next'
 import ActionEditor from './ActionEditor.vue'
 import IconPicker from './IconPicker.vue'
 import type { ButtonData } from '../types/streamdeck'
