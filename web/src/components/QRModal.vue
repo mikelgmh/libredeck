@@ -2,6 +2,7 @@
   <dialog ref="dialog" class="qr-modal">
     <div class="modal-content">
       <h2 class="modal-title">Escanea para acceder</h2>
+      
       <p class="modal-text">
         Escanea este código QR con tu dispositivo móvil para acceder a LibreDeck desde la red local.
       </p>
@@ -34,18 +35,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import QrcodeVue from 'qrcode.vue'
 import { Copy } from 'lucide-vue-next'
 
 const dialog = ref<HTMLDialogElement | null>(null)
-
-const networkUrl = computed(() => {
-  if (typeof window !== 'undefined') {
-    return window.location.origin
-  }
-  return 'http://localhost:4321'
-})
+const networkUrl = ref('http://localhost:4321')
 
 const showModal = () => {
   dialog.value?.showModal()
@@ -58,7 +53,6 @@ const closeModal = () => {
 const copyUrl = async () => {
   try {
     await navigator.clipboard.writeText(networkUrl.value)
-    // TODO: Mostrar toast de confirmación
     console.log('URL copiada al portapapeles')
   } catch (error) {
     console.error('Error al copiar URL:', error)
@@ -67,6 +61,10 @@ const copyUrl = async () => {
 
 // Cerrar modal al hacer clic en el backdrop
 onMounted(() => {
+  // Obtener la URL actual del navegador
+  networkUrl.value = window.location.origin
+  console.log('Network URL:', networkUrl.value)
+  
   dialog.value?.addEventListener('click', (e) => {
     const rect = dialog.value!.getBoundingClientRect()
     if (
@@ -87,37 +85,28 @@ defineExpose({
 </script>
 
 <style scoped>
-/* Variables */
-.qr-modal {
-  --modal-bg: oklch(var(--b1));
-  --modal-shadow: rgba(0, 0, 0, 0.1);
-  --primary-color: oklch(var(--p));
-  --text-color: oklch(var(--bc));
-  --transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-duration: 0.5s;
-}
-
 /* Modal Dialog */
 .qr-modal {
-  border: none;
+  border: 2px solid rgba(0, 0, 0, 0.1);
   border-radius: 1rem;
   padding: 0;
-  background: var(--modal-bg);
+  background-color: #1f2937;
   max-width: 90vw;
   width: 28rem;
   opacity: 0;
   transform: scale(0.95) translateY(-1rem);
-  transition: opacity var(--transition-duration) var(--transition-timing),
-    transform var(--transition-duration) var(--transition-timing),
-    overlay var(--transition-duration) var(--transition-timing) allow-discrete,
-    display var(--transition-duration) var(--transition-timing) allow-discrete;
+  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    overlay 0.5s cubic-bezier(0.4, 0, 0.2, 1) allow-discrete,
+    display 0.5s cubic-bezier(0.4, 0, 0.2, 1) allow-discrete;
+  margin: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3),
+    0 8px 10px -6px rgba(0, 0, 0, 0.2);
 }
 
 .qr-modal[open] {
   opacity: 1;
   transform: scale(1) translateY(0);
-  box-shadow: 0 20px 25px -5px var(--modal-shadow),
-    0 8px 10px -6px var(--modal-shadow);
 }
 
 @starting-style {
@@ -129,16 +118,12 @@ defineExpose({
 
 /* Backdrop styles */
 .qr-modal::backdrop {
-  background: radial-gradient(
-    circle at center,
-    rgba(0, 0, 0, 0.2),
-    rgba(0, 0, 0, 0.4)
-  );
+  background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
   opacity: 0;
-  transition: opacity var(--transition-duration) var(--transition-timing),
-    display var(--transition-duration) allow-discrete,
-    overlay var(--transition-duration) allow-discrete;
+  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    display 0.5s allow-discrete,
+    overlay 0.5s allow-discrete;
 }
 
 .qr-modal[open]::backdrop {
@@ -158,17 +143,20 @@ defineExpose({
   flex-direction: column;
   gap: 1.5rem;
   align-items: center;
+  background-color: #1f2937;
 }
 
 .modal-title {
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--text-color);
+  color: #f9fafb;
   margin: 0;
+  text-align: center;
+  width: 100%;
 }
 
 .modal-text {
-  color: oklch(var(--bc) / 0.7);
+  color: #d1d5db;
   line-height: 1.6;
   margin: 0;
   text-align: center;
@@ -185,7 +173,7 @@ defineExpose({
 /* URL Display */
 .url-display {
   width: 100%;
-  background: oklch(var(--b2));
+  background: #374151;
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
   text-align: center;
@@ -194,7 +182,7 @@ defineExpose({
 .url-display code {
   font-family: 'Courier New', monospace;
   font-size: 0.875rem;
-  color: var(--text-color);
+  color: #f9fafb;
   word-break: break-all;
 }
 
@@ -230,8 +218,8 @@ defineExpose({
 }
 
 .modal-action {
-  background-color: var(--primary-color);
-  color: oklch(var(--pc));
+  background-color: #3b82f6;
+  color: white;
 }
 
 .modal-action:hover {
@@ -240,11 +228,11 @@ defineExpose({
 }
 
 .modal-close {
-  background-color: oklch(var(--b3));
-  color: var(--text-color);
+  background-color: #4b5563;
+  color: white;
 }
 
 .modal-close:hover {
-  background-color: oklch(var(--b2));
+  background-color: #374151;
 }
 </style>

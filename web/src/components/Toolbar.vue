@@ -10,6 +10,16 @@
           <QrCode :size="20" />
         </button>
         
+        <button 
+          v-if="!isIPhone"
+          @click="toggleFullscreen"
+          class="btn btn-ghost btn-sm btn-square"
+          :title="isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'"
+        >
+          <Maximize2 v-if="!isFullscreen" :size="20" />
+          <Minimize2 v-else :size="20" />
+        </button>
+        
         <h2 class="text-lg font-semibold">
           {{ currentProfile ? currentProfile.name : 'Selecciona un perfil' }}
         </h2>
@@ -19,7 +29,8 @@
 </template>
 
 <script setup lang="ts">
-import { QrCode } from 'lucide-vue-next'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { QrCode, Maximize2, Minimize2 } from 'lucide-vue-next'
 import type { ProfileData } from '../types/streamdeck'
 
 interface Props {
@@ -35,4 +46,35 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+const isFullscreen = ref(false)
+const isIPhone = ref(false)
+
+const toggleFullscreen = async () => {
+  try {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen()
+    } else {
+      await document.exitFullscreen()
+    }
+  } catch (error) {
+    console.error('Error al cambiar pantalla completa:', error)
+  }
+}
+
+const handleFullscreenChange = () => {
+  isFullscreen.value = !!document.fullscreenElement
+}
+
+onMounted(() => {
+  // Detectar si es iPhone
+  const userAgent = window.navigator.userAgent.toLowerCase()
+  isIPhone.value = /iphone/.test(userAgent)
+  
+  document.addEventListener('fullscreenchange', handleFullscreenChange)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('fullscreenchange', handleFullscreenChange)
+})
 </script>

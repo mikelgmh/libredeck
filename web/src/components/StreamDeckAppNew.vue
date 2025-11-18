@@ -73,6 +73,36 @@ const showQRModal = () => {
   qrModal.value?.showModal()
 }
 
+// Wake Lock API to keep screen awake
+let wakeLock: any = null
+
+const requestWakeLock = async () => {
+  try {
+    if ('wakeLock' in navigator) {
+      wakeLock = await (navigator as any).wakeLock.request('screen')
+      console.log('✅ Screen Wake Lock activado')
+      
+      wakeLock.addEventListener('release', () => {
+        console.log('⚠️ Screen Wake Lock liberado')
+      })
+    }
+  } catch (err) {
+    console.error('❌ Error al activar Wake Lock:', err)
+  }
+}
+
+const releaseWakeLock = async () => {
+  if (wakeLock !== null) {
+    try {
+      await wakeLock.release()
+      wakeLock = null
+      console.log('Screen Wake Lock liberado manualmente')
+    } catch (err) {
+      console.error('Error al liberar Wake Lock:', err)
+    }
+  }
+}
+
 // Use the composable
 const {
   // State
@@ -160,17 +190,28 @@ const updateButtonTextColor = (value: string) => {
 }
 
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
   connectWebSocket()
   loadProfiles()
   
   // Add keyboard listener for Delete key
   window.addEventListener('keydown', handleKeyDown)
+  
+  // Activar Wake Lock para mantener pantalla encendida
+  await requestWakeLock()
+  
+  // Reactivar Wake Lock si la página vuelve a ser visible
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && wakeLock === null) {
+      await requestWakeLock()
+    }
+  })
 })
 
 onUnmounted(() => {
   cleanup()
   window.removeEventListener('keydown', handleKeyDown)
+  releaseWakeLock()
 })
 
 // Handle Delete key press
