@@ -1,5 +1,5 @@
 <template>
-  <div class="w-80 bg-base-200 border-l border-base-300 flex flex-col h-screen">
+  <div class="w-80 bg-base-200 border-l border-base-300 flex flex-col h-screen" data-cy="actions-sidebar">
     <!-- Header -->
     <div class="p-4 border-b border-base-300">
       <h2 class="text-lg font-semibold mb-3">{{ t('actionsSidebar.actionsLibrary') }}</h2>

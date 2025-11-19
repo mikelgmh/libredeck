@@ -2,7 +2,7 @@
   <div class="bg-base-200 border-t border-base-300 px-4 py-3">
     <div class="flex items-center justify-between">
       <!-- Page Tabs -->
-      <div class="flex items-center gap-2 flex-1 overflow-x-auto">
+      <div class="flex items-center gap-2 flex-1 overflow-x-auto" data-cy="page-nav">
         <div
           v-for="page in visiblePages"
           :key="page.id"
@@ -35,13 +35,14 @@
         @click="showAddPageModal = true"
         class="btn btn-circle btn-ghost btn-sm ml-2"
         :title="t('pageNavigation.addPage')"
+        data-cy="add-page"
       >
         <Plus :size="16" />
       </button>
     </div>
 
     <!-- Page Counter -->
-    <div class="text-xs text-base-content/60 mt-2 text-center">
+    <div class="text-xs text-base-content/60 mt-2 text-center" data-cy="current-page">
       {{ t('pageNavigation.pageCounter', { current: currentPageIndex + 1, total: visiblePages.length }) }}
     </div>
 
@@ -106,6 +107,7 @@
             :placeholder="t('pageNavigation.pageNameExamples')"
             class="input input-bordered input-sm w-full"
             @keyup.enter="createPage"
+            data-cy="page-name-input"
           />
         </div>
 
@@ -136,6 +138,7 @@
             @click="createPage"
             :disabled="!newPageName.trim()"
             class="btn btn-primary"
+            data-cy="create-page"
           >
             {{ t('pageNavigation.createPage') }}
           </button>

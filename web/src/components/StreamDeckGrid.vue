@@ -78,6 +78,7 @@
               executingButtons.includes(index - 1) ? 'animate-pulse bg-success/20 border-success' : '',
             ]"
             :style="getButtonStyle(index - 1)"
+            :data-cy="`button-slot`"
           >
             <!-- Content for buttons with data -->
             <template v-if="getButton(index - 1)">
@@ -122,6 +123,15 @@
                 class="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-content rounded-full text-xs flex items-center justify-center font-bold"
               >
                 {{ getButtonData(index - 1)?.actions?.length || 0 }}
+              </div>
+              
+              <!-- Execution Feedback -->
+              <div 
+                v-if="executingButtons.includes(index - 1)" 
+                class="absolute -bottom-1 -right-1 w-6 h-6 bg-warning text-warning-content rounded-full text-sm flex items-center justify-center font-bold animate-pulse"
+                data-cy="execution-feedback"
+              >
+                ⚡
               </div>
             </template>
             

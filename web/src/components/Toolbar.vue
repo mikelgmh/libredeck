@@ -6,9 +6,10 @@
           :value="selectedProfile" 
           @change="handleProfileChange" 
           class="select select-bordered select-sm"
+          data-cy="profile-selector"
         >
           <option value="">{{ t('toolbar.selectProfile') }}</option>
-          <option v-for="profile in profiles" :key="profile.id" :value="profile.id">
+          <option v-for="profile in profiles" :key="profile.id" :value="profile.id" data-cy="profile-option">
             {{ profile.name }}
           </option>
         </select>
@@ -26,9 +27,10 @@
           @change="handleLanguageChange" 
           class="select select-bordered select-sm"
           :title="t('toolbar.language')"
+          data-cy="language-selector"
         >
           <option value="es">🇪🇸 Español</option>
-          <option value="en">🇺🇸 English</option>
+          <option value="en" data-cy="language-en">🇺🇸 English</option>
         </select>
         
         <button 

@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-4">
+  <div class="space-y-4" data-cy="button-editor">
     <!-- Basic Settings -->
     <div class="space-y-4">
       <!-- Icon Picker -->
@@ -18,7 +18,8 @@
           @input="updateTextTop"
           type="text" 
           placeholder="Texto superior (opcional)"
-          class="input input-bordered input-sm w-full" 
+          class="input input-bordered input-sm w-full"
+          data-cy="text-top-input"
         />
       </label>
 
@@ -32,7 +33,8 @@
           @input="updateTextBottom"
           type="text" 
           placeholder="Texto inferior (opcional)"
-          class="input input-bordered input-sm w-full" 
+          class="input input-bordered input-sm w-full"
+          data-cy="text-bottom-input"
         />
       </label>
 
@@ -94,9 +96,10 @@
       @dragover.prevent="handleDragOver"
       @dragleave="handleDragLeave"
       @drop.prevent="handleDrop"
+      data-cy="drop-zone"
     >
       <!-- Swapy container with slots -->
-      <div v-if="buttonConfig.actions.length > 0" class="space-y-3">
+      <div v-if="buttonConfig.actions.length > 0" class="space-y-3" data-cy="button-actions">
         <div 
           v-for="(action, index) in buttonConfig.actions" 
           :key="action.id"
@@ -124,6 +127,16 @@
         <div class="text-2xl mb-2">↓</div>
         {{ t('buttonEditor.dropActionHere') }}
       </div>
+    </div>
+
+    <!-- Save Button -->
+    <div class="flex justify-end mt-4">
+      <button 
+        class="btn btn-primary btn-sm"
+        data-cy="save-button"
+      >
+        {{ t('buttonEditor.save') }}
+      </button>
     </div>
   </div>
 </template>

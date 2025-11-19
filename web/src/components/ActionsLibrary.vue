@@ -13,6 +13,7 @@
           class="card bg-base-100 hover:bg-base-200 cursor-grab transition-all duration-200 border border-base-300 hover:border-primary"
           draggable="true"
           @dragstart="handleDragStart($event, action)"
+          data-cy="action-item"
         >
           <div class="card-body p-4">
             <div class="flex items-center gap-3">
