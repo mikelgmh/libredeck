@@ -630,6 +630,13 @@ export function useStreamDeck() {
         // No content and no existing button - nothing to do
         console.log('⏭️ No content to save for empty button at position:', position)
       }
+
+      // Clear dynamic button values for this position to force refresh with new config
+      dynamicButtonValues.value.delete(position)
+      console.log('🧹 Cleared dynamic values for position', position, 'to force refresh')
+
+      // Restart dynamic updates to include/exclude the newly saved button
+      await startDynamicUpdates()
     } catch (error) {
       console.error('❌ Failed to save button:', error)
     } finally {

@@ -4,6 +4,7 @@ import { ActionRunner } from '../action-runner';
 import { windowWatcher } from '../window-watcher';
 import { DatabaseService } from '../db';
 import { v4 as uuidv4 } from 'uuid';
+import { getSystemMetricsScript } from '../scripts/system-metrics.ps1';
 
 interface APIServices {
   wsManager: WebSocketManager;
@@ -26,7 +27,6 @@ export async function setupAPIRoutes(
     // Test endpoint for connectivity
     if (path === '/api/v1/test') {
       if (method === 'GET') {
-        console.log('🧪 Test endpoint called')
         return jsonResponse({ 
           status: 'ok', 
           message: 'Daemon is running',
@@ -207,22 +207,17 @@ export async function setupAPIRoutes(
       if (method === 'PUT') {
         const body = await req.json();
 
-        console.log(`📝 Updating button ${buttonId}:`, body);
-
         // Use new complete update function if position is provided
         if (body.position !== undefined) {
-          console.log(`🔄 Position update: ${buttonId} → position ${body.position}`);
           db.updateButtonComplete(buttonId, {
             data: body.data,
             position: body.position
           });
         } else {
-          console.log(`📄 Data-only update: ${buttonId}`);
           db.updateButton(buttonId, body.data);
         }
 
         const updatedButton = db.getButton(buttonId);
-        console.log(`✅ Button updated:`, updatedButton);
         services.wsManager.broadcastButtonUpdate(buttonId, updatedButton);
 
         return jsonResponse(updatedButton);
@@ -468,8 +463,6 @@ export async function setupAPIRoutes(
       }
     }    if (path === '/api/v1/windows/list') {
       if (method === 'GET') {
-        console.log('🔍 Windows list requested')
-        
         // Obtener lista de todas las ventanas visibles usando PowerShell
         const powershellScript = `
           try {
@@ -550,35 +543,51 @@ export async function setupAPIRoutes(
           }
         `.trim()
 
-        console.log('⚡ Executing PowerShell script...')
-        
-        // TEMPORAL: Return mock data for testing
-        const mockWindows = [
-          {
-            hwnd: "12345678",
-            title: "Visual Studio Code",
-            processId: 1234,
-            processName: "Code",
-            executablePath: "C:\\Users\\Mikel\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
-          },
-          {
-            hwnd: "87654321", 
-            title: "Google Chrome",
-            processId: 5678,
-            processName: "chrome",
-            executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
-          },
-          {
-            hwnd: "11223344",
-            title: "Bloc de notas",
-            processId: 9999,
-            processName: "notepad",
-            executablePath: "C:\\Windows\\System32\\notepad.exe"
+        const proc = Bun.spawn({
+          cmd: ['powershell.exe', '-Command', powershellScript],
+          stdio: ['ignore', 'pipe', 'pipe']
+        })
+
+        const output = await new Response(proc.stdout).text()
+        const error = await new Response(proc.stderr).text()
+
+        await proc.exited
+
+        if (proc.exitCode === 0 && output.trim()) {
+          try {
+            const windows = JSON.parse(output.trim())
+            return jsonResponse(windows)
+          } catch (parseError) {
+            return jsonResponse({ error: 'Failed to parse windows list' }, 500)
           }
-        ]
-        
-        console.log('✅ Returning mock windows data:', mockWindows.length)
-        return jsonResponse(mockWindows)
+        } else {
+          // Return mock data as fallback
+          const mockWindows = [
+            {
+              hwnd: "12345678",
+              title: "Visual Studio Code",
+              processId: 1234,
+              processName: "Code",
+              executablePath: "C:\\Users\\Mikel\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
+            },
+            {
+              hwnd: "87654321", 
+              title: "Google Chrome",
+              processId: 5678,
+              processName: "chrome",
+              executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+            },
+            {
+              hwnd: "11223344",
+              title: "Bloc de notas",
+              processId: 9999,
+              processName: "notepad",
+              executablePath: "C:\\Windows\\System32\\notepad.exe"
+            }
+          ]
+          
+          return jsonResponse(mockWindows)
+        }
       }
     }
 
@@ -617,64 +626,8 @@ export async function setupAPIRoutes(
 
     if (path === '/api/v1/system/metrics') {
       if (method === 'GET') {
-        console.log('📊 System metrics requested')
-
         try {
-          // Try PowerShell implementation first, fall back to mock data if it fails
-          const powershellScript = `
-            try {
-              # Simple CPU usage using performance counters (most reliable)
-              $cpuUsage = 0
-              try {
-                $counter = Get-Counter '\\Processor(_Total)\\% Processor Time' -SampleInterval 1 -MaxSamples 1 -ErrorAction Stop
-                $cpuUsage = [math]::Round($counter.CounterSamples[0].CookedValue, 1)
-              } catch {
-                # Fallback: try CIM
-                try {
-                  $cpu = Get-CimInstance -ClassName Win32_Processor -ErrorAction Stop
-                  $cpuUsage = [math]::Round($cpu.LoadPercentage, 1)
-                } catch {
-                  $cpuUsage = 0
-                }
-              }
-
-              # RAM using CIM (most reliable)
-              $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
-              $totalMemory = [math]::Round($os.TotalVisibleMemorySize / 1MB, 1)
-              $freeMemory = [math]::Round($os.FreePhysicalMemory / 1MB, 1)
-              $usedMemory = $totalMemory - $freeMemory
-              $ramUsage = [math]::Round(($usedMemory / $totalMemory) * 100, 1)
-
-              # Create result
-              @{
-                cpu = @{
-                  usage = $cpuUsage
-                  temperature = $null
-                }
-                ram = @{
-                  total = $totalMemory
-                  used = [math]::Round($usedMemory, 1)
-                  usage = $ramUsage
-                }
-                gpu = @{
-                  usage = $null
-                  temperature = $null
-                }
-                timestamp = (Get-Date).ToString('o')
-              } | ConvertTo-Json -Compress
-            } catch {
-              # Return error with basic info
-              @{
-                error = $_.Exception.Message
-                cpu = @{ usage = 0; temperature = $null }
-                ram = @{ total = 0; used = 0; usage = 0 }
-                gpu = @{ usage = $null; temperature = $null }
-                timestamp = (Get-Date).ToString('o')
-              } | ConvertTo-Json -Compress
-            }
-          `.trim()
-
-          console.log('⚡ Executing PowerShell script for system metrics...')
+          const powershellScript = getSystemMetricsScript();
 
           const proc = Bun.spawn({
             cmd: ['powershell.exe', '-Command', powershellScript],
@@ -684,7 +637,6 @@ export async function setupAPIRoutes(
           // Set a timeout for the PowerShell execution
           const timeout = setTimeout(() => {
             proc.kill()
-            console.log('⏰ PowerShell script timed out after 10 seconds')
           }, 10000) // 10 second timeout
 
           const output = await new Response(proc.stdout).text()
@@ -693,22 +645,12 @@ export async function setupAPIRoutes(
           await proc.exited
           clearTimeout(timeout)
 
-          console.log('PowerShell exit code:', proc.exitCode)
-          console.log('PowerShell stdout length:', output.length, 'characters')
-          console.log('PowerShell stdout preview:', output.substring(0, 200) + (output.length > 200 ? '...' : ''))
-          if (error) {
-            console.log('PowerShell stderr:', error.trim())
-          }
-
           if (proc.exitCode === 0 && output.trim()) {
             try {
               const metrics = JSON.parse(output.trim())
 
               // Check if we got an error response
               if (metrics.error) {
-                console.warn('PowerShell script returned error:', metrics.error)
-                console.log('Falling back to mock data due to PowerShell error')
-
                 // Return mock data as fallback
                 const mockMetrics = {
                   cpu: {
@@ -727,19 +669,14 @@ export async function setupAPIRoutes(
                   timestamp: new Date().toISOString()
                 }
 
-                console.log('📊 Returning fallback mock system metrics:', mockMetrics)
                 return jsonResponse(mockMetrics)
               }
 
-              console.log('📊 Returning real system metrics:', metrics)
               return jsonResponse(metrics)
             } catch (parseError) {
-              console.error('Failed to parse system metrics JSON:', parseError, 'Output:', output.trim())
               return jsonResponse({ error: 'Failed to parse system metrics' }, 500)
             }
           } else {
-            console.error('PowerShell execution failed for system metrics. Exit code:', proc.exitCode, 'Error:', error)
-
             // Return mock data as fallback
             const mockMetrics = {
               cpu: {
@@ -758,107 +695,9 @@ export async function setupAPIRoutes(
               timestamp: new Date().toISOString()
             }
 
-            console.log('📊 Returning fallback mock system metrics due to PowerShell failure:', mockMetrics)
             return jsonResponse(mockMetrics)
           }
-
-          /* 
-          // ORIGINAL PowerShell implementation - commented out for debugging
-          // Obtener métricas del sistema usando PowerShell
-          const powershellScript = `
-            try {
-              # CPU Usage
-              $cpuUsage = (Get-Counter '\\Processor(_Total)\\% Processor Time').CounterSamples[0].CookedValue
-
-              # RAM Usage  
-              $ramTotal = (Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB
-              $ramAvailable = (Get-Counter '\\Memory\\Available MBytes').CounterSamples[0].CookedValue / 1024
-              $ramUsed = $ramTotal - $ramAvailable
-              $ramUsagePercent = ($ramUsed / $ramTotal) * 100
-
-              # GPU Usage (si está disponible)
-              $gpuUsage = $null
-              try {
-                $gpuCounters = Get-Counter '\\GPU Engine(*)\\Utilization Percentage' -ErrorAction Stop
-                if ($gpuCounters.CounterSamples.Count -gt 0) {
-                  $gpuUsage = ($gpuCounters.CounterSamples | Measure-Object -Property CookedValue -Average).Average
-                }
-              } catch {
-                $gpuUsage = 0
-              }
-
-              # CPU Temperature (si está disponible)
-              $cpuTemp = $null
-              try {
-                $tempSensors = Get-CimInstance MSAcpi_ThermalZoneTemperature -Namespace "root/wmi" -ErrorAction Stop
-                if ($tempSensors) {
-                  $cpuTemp = ($tempSensors[0].CurrentTemperature / 10) - 273.15  # Convert from Kelvin to Celsius
-                }
-              } catch {
-                $cpuTemp = $null
-              }
-
-              # GPU Temperature (si está disponible)
-              try {
-                if (-not $gpuTemp) {
-                  $gpuSensors = Get-CimInstance Win32_VideoController | Select-Object -First 1
-                  if ($gpuSensors) {
-                    # Intentar obtener temperatura via OpenHardwareMonitor o similar
-                    # Por simplicidad, devolver null si no está disponible
-                    $gpuTemp = $null
-                  }
-                }
-              } catch {
-                $gpuTemp = $null
-              }
-
-              @{
-                cpu = @{
-                  usage = [math]::Round($cpuUsage, 1)
-                  temperature = if ($cpuTemp) { [math]::Round($cpuTemp, 1) } else { $null }
-                }
-                ram = @{
-                  total = [math]::Round($ramTotal, 1)
-                  used = [math]::Round($ramUsed, 1)
-                  usage = [math]::Round($ramUsagePercent, 1)
-                }
-                gpu = @{
-                  usage = if ($gpuUsage) { [math]::Round($gpuUsage, 1) } else { $null }
-                  temperature = if ($gpuTemp) { [math]::Round($gpuTemp, 1) } else { $null }
-                }
-                timestamp = (Get-Date).ToString('o')
-              } | ConvertTo-Json -Compress
-            } catch {
-              @{ error = $_.Exception.Message } | ConvertTo-Json -Compress
-            }
-          `.trim()
-
-          const proc = Bun.spawn({
-            cmd: ['powershell.exe', '-Command', powershellScript],
-            stdio: ['ignore', 'pipe', 'pipe']
-          })
-
-          const output = await new Response(proc.stdout).text()
-          const error = await new Response(proc.stderr).text()
-
-          await proc.exited
-
-          if (proc.exitCode === 0 && output.trim()) {
-            try {
-              const metrics = JSON.parse(output.trim())
-              return jsonResponse(metrics)
-            } catch (parseError) {
-              console.error('Failed to parse system metrics JSON:', parseError)
-              return jsonResponse({ error: 'Failed to parse system metrics' }, 500)
-            }
-          } else {
-            console.error('PowerShell execution failed for system metrics:', error)
-            return jsonResponse({ error: 'Failed to get system metrics' }, 500)
-          }
-          */
         } catch (error) {
-          console.error('Failed to get system metrics:', error)
-
           // Final fallback to mock data
           const mockMetrics = {
             cpu: {
@@ -877,13 +716,10 @@ export async function setupAPIRoutes(
             timestamp: new Date().toISOString()
           }
 
-          console.log('📊 Returning final fallback mock system metrics:', mockMetrics)
           return jsonResponse(mockMetrics)
         }
       }
-    }
-
-    // 404 - Route not found
+    }    // 404 - Route not found
     return jsonResponse({ error: 'API endpoint not found' }, 404);
 
   } catch (error) {

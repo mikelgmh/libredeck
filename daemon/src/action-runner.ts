@@ -142,8 +142,6 @@ export class ActionRunner {
         };
       }
 
-      console.log(`🎬 Executing action: ${action.type}`, action.parameters);
-
       // Log action start
       this.db.addLog({
         level: 'info',
