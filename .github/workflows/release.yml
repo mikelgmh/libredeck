@@ -3,9 +3,47 @@ name: Release
 on:
   push:
     branches: [ master ]
+  pull_request:
+    branches: [ master ]
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies (CLI)
+      run: |
+        cd cli
+        bun install
+
+    - name: Install dependencies (Daemon)
+      run: |
+        cd daemon
+        bun install
+
+    - name: Install dependencies (Web)
+      run: |
+        cd web
+        npm install
+
+    - name: Run tests
+      run: bun run test
+
   build:
+    needs: test
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -83,6 +121,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
 
     steps:
     - name: Checkout code

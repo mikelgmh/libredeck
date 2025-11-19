@@ -1,5 +1,10 @@
 # LibreDeck
 
+[![Build Status](https://github.com/mikelgmh/libredeck/workflows/Release/badge.svg)](https://github.com/mikelgmh/libredeck/actions)
+[![Test Status](https://github.com/mikelgmh/libredeck/workflows/Release/badge.svg?branch=master&event=push)](https://github.com/mikelgmh/libredeck/actions)
+[![Release](https://img.shields.io/github/v/release/mikelgmh/libredeck)](https://github.com/mikelgmh/libredeck/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Open Source StreamDeck Alternative - Multi-platform desktop automation app.
 
 ## Features
@@ -54,13 +59,25 @@ bun run dev
 
 Run `./build.sh` to create executables for all platforms.
 
+## Testing
+
+```bash
+# Run all tests
+bun run test
+
+# Run daemon tests
+bun run test:daemon
+
+# Run web tests
+bun run test:web
+
+# Run E2E tests
+bun run test:e2e
+```
+
 ## Releases
 
 Automated via GitHub Actions on push to master and release creation.
-
-## License
-
-MIT
 
 ## Updates
 
