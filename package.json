@@ -19,6 +19,7 @@
     "test": "bun run test:daemon && bun run test:web",
     "test:daemon": "cd daemon && bun run test",
     "test:web": "cd web && npm run test",
+    "test:e2e:open": "start-server-and-test 'bun run dev' http://localhost:4321 'cd web && npm run test:e2e:open'",
     "test:e2e": "start-server-and-test 'bun run dev' http://localhost:4321 'cd web && npm run test:e2e'",
     "test:coverage": "bun run test:coverage:daemon && bun run test:coverage:web",
     "test:coverage:daemon": "cd daemon && bun run test:coverage",

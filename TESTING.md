@@ -144,13 +144,25 @@ cd web && npm run test:watch
 cd daemon && bun test --coverage
 ```
 
+### Cypress (Tests E2E)
+```bash
+# Ejecutar tests E2E en modo headless (inicia servidores automáticamente)
+bun run test:e2e
+
+# Abrir interfaz gráfica de Cypress (inicia servidores automáticamente)
+bun run test:e2e:open
+
+# Ejecutar tests de componentes con Cypress
+cd web && npm run test:component:open
+```
+
 ### Debugging
 ```bash
-# Abrir Cypress GUI
-cd web && npm run test:e2e:open
-
 # Ejecutar tests del daemon con verbose
 cd daemon && bun test --verbose
+
+# Abrir Vitest UI para tests del frontend
+cd web && npm run test:ui
 ```
 
 ## 📊 Cobertura
