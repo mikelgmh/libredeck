@@ -1,7 +1,7 @@
 <template>
   <div :class="[
     'flex flex-col relative',
-    props.mode === 'edit' ? 'flex-1 p-8 items-center justify-center gap-4' : 'h-full w-full items-center justify-center'
+    props.mode === 'edit' ? 'flex-1 p-8 items-center justify-center gap-4' : 'h-full w-full items-center'
   ]">
     <!-- Exit Deck Mode Button - Only in Deck Mode -->
     <button
@@ -62,12 +62,19 @@
       ref="container"
       data-swapy-container
       :class="[
-        'grid bg-base-300 rounded-2xl border-2 border-base-300',
-        props.mode === 'edit' ? 'gap-2 p-4' : 'gap-4 p-8 h-full w-full aspect-square max-w-full max-h-full'
+        'grid rounded-2xl border-2',
+        props.mode === 'edit' ? 'bg-base-300 border-base-300' : 'bg-transparent border-transparent',
+        props.mode === 'edit' ? 'gap-2 p-4' : 'gap-0 p-0'
       ]"
-      :style="{ 
+      :style="props.mode === 'edit' ? { 
         gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
         gridTemplateRows: `repeat(${gridRows}, 1fr)` 
+      } : {
+        '--cell-size': cellSize,
+        gridTemplateColumns: `repeat(${gridCols}, var(--cell-size))`,
+        gridTemplateRows: `repeat(${gridRows}, var(--cell-size))`,
+        gap: '10px',
+        margin: '20px auto'
       }"
     >
       <div
@@ -85,8 +92,8 @@
           class="w-full h-full"
         >
           <button
-            @click="$emit('button-click', index - 1)"
-            @dblclick="$emit('button-execute', index - 1)"
+            @click="props.mode === 'deck' ? $emit('button-execute', index - 1) : $emit('button-click', index - 1)"
+            @dblclick="props.mode === 'edit' ? $emit('button-execute', index - 1) : null"
             :class="[
               'deck-button',
               'w-full h-full border-2 transition-all duration-200 relative',
@@ -94,7 +101,8 @@
               props.mode === 'edit' ? 'gap-1' : 'gap-2',
               props.mode === 'edit' ? 'rounded-xl p-2' : 'rounded-2xl p-3',
               selectedButton === (index - 1) ? 'border-primary bg-primary/20' : 'border-base-content/20 bg-base-100',
-              'hover:border-primary/50 cursor-grab active:cursor-grabbing',
+              'hover:border-primary/50',
+              props.mode === 'edit' ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
               executingButtons.includes(index - 1) ? 'animate-pulse bg-success/20 border-success' : '',
             ]"
             :style="getButtonStyle(index - 1)"
@@ -255,7 +263,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { createSwapy, type Swapy } from 'swapy'
 import { Plus, Play, Trash2, Minus, Edit } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
@@ -289,9 +297,22 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
+// Computed cell size for deck mode to ensure square buttons and fit screen
+const cellSize = computed(() => `min(calc((100vw - 10px * (${props.gridCols} - 1)) / ${props.gridCols}), calc((100vh - 40px - 10px * (${props.gridRows} - 1)) / ${props.gridRows}))`)
+
 // Swapy instance
 const container = ref<HTMLElement | null>(null)
 const swapy = ref<Swapy | null>(null)
+
+// Watch mode changes to enable/disable Swapy
+watch(() => props.mode, (newMode) => {
+  if (newMode === 'edit' && !swapy.value) {
+    initializeSwapy()
+  } else if (newMode === 'deck' && swapy.value) {
+    swapy.value.destroy()
+    swapy.value = null
+  }
+})
 
 // Context menu state
 const contextMenu = ref({
@@ -396,7 +417,9 @@ const initializeSwapy = () => {
 }
 
 onMounted(() => {
-  initializeSwapy()
+  if (props.mode === 'edit') {
+    initializeSwapy()
+  }
   document.addEventListener('keydown', handleEscapeKey)
 })
 
