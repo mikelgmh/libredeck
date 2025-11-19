@@ -90,10 +90,15 @@
                 {{ getButtonData(index - 1).textTop }}
               </div>
               
-              <!-- Icon (lucide) or Emoji -->
+              <!-- Icon (lucide) or Emoji or Dynamic Value -->
               <div class="text-2xl flex items-center justify-center">
+                <!-- Show dynamic value if available (any plugin with dynamic actions) -->
+                <span v-if="getButtonData(index - 1)?.dynamicValue" class="text-lg font-mono">
+                  {{ getButtonData(index - 1).dynamicValue }}
+                </span>
+                <!-- Otherwise show icon or emoji -->
                 <component 
-                  v-if="getButtonData(index - 1)?.icon" 
+                  v-else-if="getButtonData(index - 1)?.icon" 
                   :is="getLucideIcon(getButtonData(index - 1)?.icon)"
                   :size="32"
                 />

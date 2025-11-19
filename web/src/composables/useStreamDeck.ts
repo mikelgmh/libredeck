@@ -21,6 +21,12 @@ export function useStreamDeck() {
   const selectedButton = ref<number | null>(null)
   const executingButtons = ref<number[]>([])
 
+  // Dynamic button values for real-time updates (any plugin with dynamic actions)
+  const dynamicButtonValues = ref(new Map<number, any>())
+
+  // Update intervals for dynamic buttons
+  const updateIntervals = ref(new Map<number, number>())
+
   // Button Config
   const buttonConfig = ref<ButtonData>({
     label: '',
@@ -81,14 +87,28 @@ export function useStreamDeck() {
     const button = getButton(position)
     // If this is the selected button, always use current config for real-time updates
     if (selectedButton.value === position) {
-      return {
+      const config = {
         ...buttonConfig.value,
         // Force reactivity by accessing reactive values
         _forceUpdate: selectedButton.value
       }
+
+      // Check for dynamic values even for selected button (any plugin with dynamic actions)
+      const dynamicValue = dynamicButtonValues.value.get(position)
+      if (dynamicValue && hasDynamicAction(button!)) {
+        console.log(`📊 Applying dynamic value for selected button at position ${position}:`, dynamicValue)
+        return {
+          ...config,
+          dynamicValue: dynamicValue.value !== undefined && dynamicValue.unit ? 
+            `${dynamicValue.value}${dynamicValue.unit}` : 
+            (dynamicValue.description || 'N/A'),
+        }
+      }
+
+      return config
     }
     // Otherwise return saved data or empty object
-    return button?.data || {
+    const savedData = button?.data || {
       label: '',
       textTop: '',
       textBottom: '',
@@ -99,6 +119,20 @@ export function useStreamDeck() {
       textColor: '#f1f5f9',
       actions: []
     }
+
+      // Check for dynamic values (any plugin with dynamic actions)
+      const dynamicValue = dynamicButtonValues.value.get(position)
+      if (dynamicValue && hasDynamicAction(button!)) {
+        console.log(`📊 Applying dynamic value for position ${position}:`, dynamicValue)
+        // For dynamic actions, show dynamic value instead of static label
+        return {
+          ...savedData,
+          dynamicValue: dynamicValue.value !== undefined && dynamicValue.unit ? 
+            `${dynamicValue.value}${dynamicValue.unit}` : 
+            (dynamicValue.description || 'N/A'),
+          // Keep other properties from saved data
+        }
+      }    return savedData
   })
 
   const getButtonStyle = computed(() => (position: number) => {
@@ -289,6 +323,7 @@ export function useStreamDeck() {
 
   const loadProfile = async () => {
     if (!selectedProfile.value) {
+      stopDynamicUpdates()
       currentProfile.value = null
       currentPage.value = null
       currentButtons.value = []
@@ -340,6 +375,9 @@ export function useStreamDeck() {
       if (firstPage) {
         currentPage.value = firstPage
         await loadButtons()
+        
+        // Start dynamic updates for PC Vitals buttons
+        await startDynamicUpdates()
       } else {
         // Create default page
         currentPage.value = await apiRequest('/pages', {
@@ -392,6 +430,14 @@ export function useStreamDeck() {
   }
 
   const selectButton = async (position: number) => {
+    // Stop dynamic updates for previously selected button if it doesn't have saved dynamic action
+    if (selectedButton.value !== null && selectedButton.value !== position) {
+      const prevButton = getButton(selectedButton.value)
+      if (prevButton && !hasDynamicAction(prevButton)) {
+        stopDynamicUpdateForButton(selectedButton.value)
+      }
+    }
+
     // Save current button before switching (only if there were actual changes)
     if (selectedButton.value !== null && selectedButton.value !== position) {
       const currentButton = getButton(selectedButton.value)
@@ -415,7 +461,7 @@ export function useStreamDeck() {
     console.log('Selected button at position:', position, 'Found button:', button)
 
     if (button) {
-      buttonConfig.value = {
+      let buttonData = {
         label: button.data?.label || '',
         textTop: button.data?.textTop || '',
         textBottom: button.data?.textBottom || '',
@@ -426,6 +472,19 @@ export function useStreamDeck() {
         textColor: button.data?.textColor || '#f1f5f9',
         actions: button.data?.actions ? JSON.parse(JSON.stringify(button.data.actions)) : []
       }
+
+      // Fix legacy PC Vitals actions that have pluginId: null
+      if (buttonData.actions) {
+        buttonData.actions = buttonData.actions.map((action: any) => {
+          if (action.type === 'pc-vitals.monitor' && action.pluginId === null) {
+            console.log('🔧 Fixing legacy PC Vitals action, setting pluginId to pc-vitals')
+            return { ...action, pluginId: 'pc-vitals' }
+          }
+          return action
+        })
+      }
+
+      buttonConfig.value = buttonData
     } else {
       buttonConfig.value = {
         label: '',
@@ -439,6 +498,9 @@ export function useStreamDeck() {
         actions: []
       }
     }
+
+    // Restart dynamic updates to include/exclude the newly selected button
+    await startDynamicUpdates()
   }
 
   const executeButton = async (position: number) => {
@@ -577,9 +639,30 @@ export function useStreamDeck() {
 
   // Action management functions
   const addAction = (type: string) => {
+    // Find the plugin that has this action type
+    let pluginId = null
+    for (const plugin of plugins.value) {
+      const [pid, pluginData] = plugin
+      // For full action types like 'pc-vitals.monitor', check if the plugin ID matches the prefix
+      if (type.includes('.')) {
+        const [pluginPrefix, actionId] = type.split('.')
+        if (pid === pluginPrefix && pluginData.actions && pluginData.actions.some((action: any) => action[0] === actionId)) {
+          pluginId = pid
+          break
+        }
+      } else {
+        // For simple action types, check direct match
+        if (pluginData.actions && pluginData.actions.some((action: any) => action[0] === type)) {
+          pluginId = pid
+          break
+        }
+      }
+    }
+
     const newAction = {
       id: Date.now().toString(),
       type,
+      pluginId,
       parameters: getDefaultActionParameters(type)
     }
 
@@ -588,7 +671,7 @@ export function useStreamDeck() {
       ...buttonConfig.value,
       actions: [...buttonConfig.value.actions, newAction]
     }
-    console.log('➕ Added action:', newAction)
+    console.log('➕ Added action:', newAction, 'pluginId found:', pluginId)
   }
 
   const removeAction = (index: number) => {
@@ -688,6 +771,8 @@ export function useStreamDeck() {
         return { pageId: '', pageName: '' }
       case 'open-url':
         return { url: '' }
+      case 'pc-vitals.monitor':
+        return { component: 'cpu', metric: 'usage', updateInterval: 1000 }
       default:
         return {}
     }
@@ -695,6 +780,9 @@ export function useStreamDeck() {
 
   // Profile management functions
   const selectProfile = async (profileId: string) => {
+    // Stop existing dynamic updates
+    stopDynamicUpdates()
+    
     selectedProfile.value = profileId
     await loadProfile()
 
@@ -850,6 +938,9 @@ export function useStreamDeck() {
       return
     }
 
+    // Stop existing dynamic updates
+    stopDynamicUpdates()
+
     // Save current page's button config before switching
     if (selectedButton.value !== null && currentPage.value) {
       const currentButton = getButton(selectedButton.value)
@@ -876,6 +967,9 @@ export function useStreamDeck() {
     }
 
     await loadButtons()
+
+    // Start dynamic updates for PC Vitals buttons
+    await startDynamicUpdates()
 
     // Broadcast page change to other devices (only for local changes)
     if (!isRemotePageChange.value) {
@@ -1189,6 +1283,204 @@ export function useStreamDeck() {
   const cleanup = () => {
     ws?.close()
     if (saveTimeout.value) clearTimeout(saveTimeout.value)
+    stopDynamicUpdates()
+  }
+
+  // Dynamic button functions (generic for any plugin)
+  const hasDynamicAction = (button: ButtonEntity | null) => {
+    // Check saved button data
+    if (button?.data?.actions) {
+      const hasAction = button.data.actions.some((action: any) => {
+        // Check if this action type is marked as dynamic in any plugin
+        for (const plugin of plugins.value) {
+          const [pluginId, pluginData] = plugin
+          if (pluginData.actions) {
+            // If action.pluginId is null, infer it from action.type
+            const actionPluginId = action.pluginId || action.type.split('.')[0]
+            const found = pluginData.actions.some((pluginAction: any) => {
+              const actionId = action.type.split('.')[1]
+              return pluginAction[0] === actionId && pluginAction[1]?.dynamic === true && actionPluginId === pluginId
+            })
+            if (found) return true
+          }
+        }
+        return false
+      })
+      return hasAction
+    }
+    
+    // Check current button config (for selected/unsaved buttons)
+    if (selectedButton.value !== null && buttonConfig.value.actions) {
+      const hasAction = buttonConfig.value.actions.some((action: any) => {
+        // Check if this action type is marked as dynamic in any plugin
+        for (const plugin of plugins.value) {
+          const [pluginId, pluginData] = plugin
+          if (pluginData.actions) {
+            // If action.pluginId is null, infer it from action.type
+            const actionPluginId = action.pluginId || action.type.split('.')[0]
+            const found = pluginData.actions.some((pluginAction: any) => {
+              const actionId = action.type.split('.')[1]
+              return pluginAction[0] === actionId && pluginAction[1]?.dynamic === true && actionPluginId === pluginId
+            })
+            if (found) return true
+          }
+        }
+        return false
+      })
+      return hasAction
+    }
+    
+    return false
+  }
+
+  const getDynamicAction = (button: ButtonEntity | null) => {
+    // Check saved button data
+    if (button?.data?.actions) {
+      return button.data.actions.find((action: any) => {
+        // Check if this action type is marked as dynamic in any plugin
+        for (const plugin of plugins.value) {
+          const [pluginId, pluginData] = plugin
+          if (pluginData.actions && pluginData.actions.some((pluginAction: any) => {
+            // If action.pluginId is null, infer it from action.type
+            const actionPluginId = action.pluginId || action.type.split('.')[0]
+            const actionId = action.type.split('.')[1]
+            return pluginAction[0] === actionId && pluginAction[1]?.dynamic === true && actionPluginId === pluginId
+          })) {
+            return true
+          }
+        }
+        return false
+      })
+    }
+    
+    // Check current button config (for selected/unsaved buttons)
+    if (selectedButton.value !== null && buttonConfig.value.actions) {
+      return buttonConfig.value.actions.find((action: any) => {
+        // Check if this action type is marked as dynamic in any plugin
+        for (const plugin of plugins.value) {
+          const [pluginId, pluginData] = plugin
+          if (pluginData.actions && pluginData.actions.some((pluginAction: any) => {
+            // If action.pluginId is null, infer it from action.type
+            const actionPluginId = action.pluginId || action.type.split('.')[0]
+            const actionId = action.type.split('.')[1]
+            return pluginAction[0] === actionId && pluginAction[1]?.dynamic === true && actionPluginId === pluginId
+          })) {
+            return true
+          }
+        }
+        return false
+      })
+    }
+    
+    return null
+  }
+
+  const updateDynamicButtonValue = async (position: number, button: ButtonEntity) => {
+    const dynamicAction = getDynamicAction(button)
+    if (!dynamicAction) return
+
+    try {
+      console.log(`🔄 Updating dynamic action for button at position ${position}`)
+      
+      const response = await apiRequest('/actions/execute', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: dynamicAction,
+          context: {
+            buttonId: button.id,
+            pageId: button.page_id,
+            profileId: currentProfile.value?.id,
+            position
+          }
+        })
+      })
+
+      if (response.result) {
+        console.log(`✅ Dynamic action updated for position ${position}:`, response.result)
+        dynamicButtonValues.value.set(position, response.result)
+      } else {
+        console.warn(`⚠️ No result in dynamic action response for position ${position}`)
+      }
+    } catch (error) {
+      console.error(`❌ Failed to update dynamic button value for position ${position}:`, error)
+    }
+  }
+
+  const startDynamicUpdates = async () => {
+    // Wait for plugins to be loaded
+    if (plugins.value.length === 0) {
+      console.log('⏳ Waiting for plugins to load...')
+      await loadPlugins()
+    }
+
+    // Clear existing intervals
+    updateIntervals.value.forEach(interval => clearInterval(interval))
+    updateIntervals.value.clear()
+
+    console.log('🔄 Starting dynamic updates for buttons:', currentButtons.value.length)
+
+    // Start new intervals for buttons with dynamic actions (only saved buttons)
+    currentButtons.value.forEach((button: ButtonEntity) => {
+      if (hasDynamicAction(button) && button.position !== selectedButton.value) {
+        const dynamicAction = getDynamicAction(button)
+        const updateInterval = dynamicAction?.parameters?.updateInterval || 1000
+
+        console.log(`📊 Setting up dynamic monitoring for saved button at position ${button.position}:`, {
+          actionType: dynamicAction?.type,
+          updateInterval
+        })
+
+        const interval = setInterval(() => {
+          updateDynamicButtonValue(button.position, button)
+        }, updateInterval)
+
+        updateIntervals.value.set(button.position, interval)
+
+        // Initial update
+        updateDynamicButtonValue(button.position, button)
+      }
+    })
+
+    // Also handle the currently selected button if it has dynamic action
+    if (selectedButton.value !== null) {
+      const selectedBtn = getButton(selectedButton.value)
+      if (hasDynamicAction(selectedBtn)) {
+        const dynamicAction = getDynamicAction(selectedBtn)
+        const updateInterval = dynamicAction?.parameters?.updateInterval || 1000
+
+        console.log(`📊 Setting up dynamic monitoring for selected button at position ${selectedButton.value}:`, {
+          actionType: dynamicAction?.type,
+          updateInterval
+        })
+
+        const interval = setInterval(() => {
+          updateDynamicButtonValue(selectedButton.value, selectedBtn!)
+        }, updateInterval)
+
+        updateIntervals.value.set(selectedButton.value, interval)
+
+        // Initial update
+        updateDynamicButtonValue(selectedButton.value, selectedBtn!)
+      }
+    }
+
+    console.log(`✅ Dynamic updates started for ${updateIntervals.value.size} buttons`)
+  }
+
+  const stopDynamicUpdates = () => {
+    updateIntervals.value.forEach(interval => clearInterval(interval))
+    updateIntervals.value.clear()
+    dynamicButtonValues.value.clear()
+  }
+
+  const stopDynamicUpdateForButton = (position: number) => {
+    const interval = updateIntervals.value.get(position)
+    if (interval) {
+      clearInterval(interval)
+      updateIntervals.value.delete(position)
+      dynamicButtonValues.value.delete(position)
+      console.log(`🛑 Stopped dynamic updates for button at position ${position}`)
+    }
   }
 
   return {
@@ -1238,10 +1530,20 @@ export function useStreamDeck() {
   changeGridSize,
   handleSwap,
   debouncedSave,
-  cleanup,    // Internal state for watchers
-    isChangingButton,
-    isSaving,
-    isSwapping,
-    saveTimeout
+  cleanup,
+  
+  // Dynamic button functions (generic for any plugin)
+  hasDynamicAction,
+  getDynamicAction,
+  updateDynamicButtonValue,
+  startDynamicUpdates,
+  stopDynamicUpdates,
+  stopDynamicUpdateForButton,
+  
+  // Internal state for watchers
+  isChangingButton,
+  isSaving,
+  isSwapping,
+  saveTimeout
   }
 }

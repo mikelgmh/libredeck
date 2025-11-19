@@ -178,7 +178,7 @@ async function installBuiltInPlugins(db: Database) {
   console.log('🔌 Installing built-in plugins...');
 
   // Import built-in plugins statically to avoid dynamic import issues
-  const { ShellPlugin, HttpPlugin, HotkeyPlugin, TypeTextPlugin, MultimediaPlugin, OpenAppPlugin, PagePlugin, UtilityPlugin, BrowserPlugin } = await import('./plugins/index');
+  const { ShellPlugin, HttpPlugin, HotkeyPlugin, TypeTextPlugin, MultimediaPlugin, OpenAppPlugin, PagePlugin, UtilityPlugin, BrowserPlugin, PCVitalsPlugin } = await import('./plugins/index');
 
   const builtInPlugins = [
     { id: 'shell', class: ShellPlugin },
@@ -189,7 +189,8 @@ async function installBuiltInPlugins(db: Database) {
     { id: 'open-app', class: OpenAppPlugin },
     { id: 'page', class: PagePlugin },
     { id: 'utility', class: UtilityPlugin },
-    { id: 'browser', class: BrowserPlugin }
+    { id: 'browser', class: BrowserPlugin },
+    { id: 'pc-vitals', class: PCVitalsPlugin }
   ];
 
   const insertPlugin = db.prepare(`

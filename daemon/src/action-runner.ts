@@ -11,6 +11,7 @@ import {
   OpenAppPlugin,
   PagePlugin,
   BrowserPlugin,
+  PCVitalsPlugin,
   type NativePlugin
 } from './plugins';
 
@@ -74,6 +75,7 @@ export class ActionRunner {
     const openAppPlugin = new OpenAppPlugin(pluginContext);
     const pagePlugin = new PagePlugin(pluginContext);
     const browserPlugin = new BrowserPlugin(pluginContext);
+    const pcVitalsPlugin = new PCVitalsPlugin(pluginContext);
 
     // Set action executor for utility plugin
     utilityPlugin.setActionExecutor(this.executeAction.bind(this));
@@ -87,7 +89,8 @@ export class ActionRunner {
       typeTextPlugin,
       openAppPlugin,
       pagePlugin,
-      browserPlugin
+      browserPlugin,
+      pcVitalsPlugin
     );
 
     // Register all action handlers from native plugins

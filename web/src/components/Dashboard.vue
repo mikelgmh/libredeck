@@ -144,7 +144,7 @@
                 
                 <!-- Button Label -->
                 <div class="button-label">
-                  {{ getButton(index - 1)?.data?.label || '' }}
+                  {{ getButtonLabel(index - 1) }}
                 </div>
                 
                 <!-- Action Count Indicator -->
@@ -288,6 +288,12 @@ const showGridSettings = ref(false)
 const executingButtons = ref([])
 const currentPage = ref(null)
 
+// Dynamic button values for real-time updates
+const dynamicButtonValues = ref(new Map<number, any>())
+
+// Update intervals for dynamic buttons
+const updateIntervals = ref(new Map<number, number>())
+
 // WebSocket
 let ws: WebSocket | null = null
 
@@ -419,6 +425,9 @@ const createProfile = () => {
 }
 
 const selectProfile = async (profile: any) => {
+  // Stop existing dynamic updates
+  stopDynamicUpdates()
+  
   currentProfile.value = profile
   
   // Send WebSocket message to sync profile selection across devices
@@ -434,6 +443,9 @@ const selectProfile = async (profile: any) => {
     if (pages.length > 0) {
       const buttons = await apiRequest(`/buttons?pageId=${pages[0].id}`)
       currentButtons.value = buttons
+      
+      // Start dynamic updates for PC Vitals buttons
+      startDynamicUpdates()
     }
   } catch (error) {
     console.error('Failed to load profile data:', error)
@@ -488,6 +500,25 @@ const togglePlugin = (plugin: any) => {
 // StreamDeck Grid Methods
 const getButton = (position: number) => {
   return currentButtons.value.find((btn: any) => btn.position === position)
+}
+
+const getButtonLabel = (position: number) => {
+  const button = getButton(position)
+  const dynamicValue = dynamicButtonValues.value.get(position)
+  
+  if (dynamicValue && hasPcVitalsAction(button)) {
+    // Show dynamic value for PC Vitals buttons
+    if (dynamicValue.value !== undefined && dynamicValue.unit) {
+      return `${dynamicValue.value}${dynamicValue.unit}`
+    } else if (dynamicValue.value !== undefined) {
+      return dynamicValue.value.toString()
+    } else if (dynamicValue.description) {
+      return dynamicValue.description
+    }
+  }
+  
+  // Fallback to static label
+  return button?.data?.label || ''
 }
 
 const getButtonStyle = (position: number) => {
@@ -653,6 +684,7 @@ const updateGrid = () => {
 
 const loadProfile = async () => {
   if (!selectedProfile.value) {
+    stopDynamicUpdates()
     currentProfile.value = null
     currentButtons.value = []
     return
@@ -668,6 +700,9 @@ const loadProfile = async () => {
       currentPage.value = pages[0]
       const buttons = await apiRequest(`/buttons?pageId=${pages[0].id}`)
       currentButtons.value = buttons
+      
+      // Start dynamic updates for PC Vitals buttons
+      startDynamicUpdates()
     } else {
       // Create default page
       const newPage = await apiRequest('/pages', {
@@ -744,6 +779,74 @@ const formatTime = (timestamp: number) => {
   return new Date(timestamp).toLocaleTimeString()
 }
 
+// Dynamic Button Update Functions
+const hasPcVitalsAction = (button: any) => {
+  return button?.data?.actions?.some((action: any) => 
+    action.type === 'pc-vitals' && action.pluginId === 'pc-vitals'
+  )
+}
+
+const getPcVitalsAction = (button: any) => {
+  return button?.data?.actions?.find((action: any) => 
+    action.type === 'pc-vitals' && action.pluginId === 'pc-vitals'
+  )
+}
+
+const updateDynamicButtonValue = async (position: number, button: any) => {
+  const pcVitalsAction = getPcVitalsAction(button)
+  if (!pcVitalsAction) return
+
+  try {
+    const response = await apiRequest('/actions/execute', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: pcVitalsAction,
+        context: {
+          buttonId: button.id,
+          pageId: button.page_id,
+          profileId: currentProfile.value?.id,
+          position
+        }
+      })
+    })
+
+    if (response.result) {
+      dynamicButtonValues.value.set(position, response.result)
+    }
+  } catch (error) {
+    console.error('Failed to update dynamic button value:', error)
+  }
+}
+
+const startDynamicUpdates = () => {
+  // Clear existing intervals
+  updateIntervals.value.forEach(interval => clearInterval(interval))
+  updateIntervals.value.clear()
+
+  // Start new intervals for buttons with PC Vitals actions
+  currentButtons.value.forEach((button: any) => {
+    if (hasPcVitalsAction(button)) {
+      const pcVitalsAction = getPcVitalsAction(button)
+      const updateInterval = pcVitalsAction?.parameters?.updateInterval || 1000
+
+      const interval = setInterval(() => {
+        updateDynamicButtonValue(button.position, button)
+      }, updateInterval)
+
+      updateIntervals.value.set(button.position, interval)
+
+      // Initial update
+      updateDynamicButtonValue(button.position, button)
+    }
+  })
+}
+
+const stopDynamicUpdates = () => {
+  updateIntervals.value.forEach(interval => clearInterval(interval))
+  updateIntervals.value.clear()
+  dynamicButtonValues.value.clear()
+}
+
 // Lifecycle
 onMounted(() => {
   connectWebSocket()
@@ -754,6 +857,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   ws?.close()
+  stopDynamicUpdates()
 })
 </script>
 
