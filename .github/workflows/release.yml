@@ -103,8 +103,8 @@ jobs:
 
     - name: Copy Web dist to Daemon
       run: |
-        mkdir -p daemon/web-dist
-        cp -r web/dist/* daemon/web-dist/
+        if [ ! -d "daemon/web-dist" ]; then mkdir daemon/web-dist; fi
+        if [ -d "web/dist" ]; then cp -r web/dist/* daemon/web-dist/ || true; fi
 
     - name: Build Unified Daemon
       run: |
