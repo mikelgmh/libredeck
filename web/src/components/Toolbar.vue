@@ -7,7 +7,7 @@
           @change="handleProfileChange" 
           class="select select-bordered select-sm"
         >
-          <option value="">Seleccionar perfil...</option>
+          <option value="">{{ t('toolbar.selectProfile') }}</option>
           <option v-for="profile in profiles" :key="profile.id" :value="profile.id">
             {{ profile.name }}
           </option>
@@ -15,16 +15,26 @@
         <button 
           @click="$emit('show-profile-settings')"
           class="btn btn-ghost btn-sm btn-square"
-          title="Ajustes de perfiles"
+          :title="t('toolbar.profileSettings')"
         >
           <Settings :size="20" />
         </button>
       </div>
       <div class="flex items-center gap-2">
+        <select 
+          :value="currentLocale" 
+          @change="handleLanguageChange" 
+          class="select select-bordered select-sm"
+          :title="t('toolbar.language')"
+        >
+          <option value="es">🇪🇸 Español</option>
+          <option value="en">🇺🇸 English</option>
+        </select>
+        
         <button 
           @click="$emit('show-qr')"
           class="btn btn-ghost btn-sm btn-square"
-          title="Mostrar código QR"
+          :title="t('toolbar.showQR')"
         >
           <QrCode :size="20" />
         </button>
@@ -33,7 +43,7 @@
           v-if="!isIPhone"
           @click="toggleFullscreen"
           class="btn btn-ghost btn-sm btn-square"
-          :title="isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'"
+          :title="isFullscreen ? t('toolbar.exitFullscreen') : t('toolbar.fullscreen')"
         >
           <Maximize2 v-if="!isFullscreen" :size="20" />
           <Minimize2 v-else :size="20" />
@@ -46,13 +56,17 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { QrCode, Maximize2, Minimize2, Settings } from 'lucide-vue-next'
+import { useI18nStore } from '../composables/useI18n'
 import type { ProfileData } from '../types/streamdeck'
+
+const { t } = useI18nStore()
 
 interface Props {
   profiles: ProfileData[]
   selectedProfile: string
   gridCols: number
   gridRows: number
+  currentLocale: string
 }
 
 interface Emits {
@@ -60,6 +74,7 @@ interface Emits {
   (e: 'grid-size-change', deltaX: number, deltaY: number): void
   (e: 'show-qr'): void
   (e: 'show-profile-settings'): void
+  (e: 'language-changed', locale: string): void
 }
 
 const props = defineProps<Props>()
@@ -68,9 +83,9 @@ const emit = defineEmits<Emits>()
 const isFullscreen = ref(false)
 const isIPhone = ref(false)
 
-const handleProfileChange = (event: Event) => {
+const handleLanguageChange = (event: Event) => {
   const target = event.target as HTMLSelectElement
-  emit('profile-changed', target.value)
+  emit('language-changed', target.value)
 }
 
 const toggleFullscreen = async () => {

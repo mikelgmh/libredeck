@@ -34,7 +34,7 @@
       <button
         @click="showAddPageModal = true"
         class="btn btn-circle btn-ghost btn-sm ml-2"
-        title="Añadir página"
+        :title="t('pageNavigation.addPage')"
       >
         <Plus :size="16" />
       </button>
@@ -42,7 +42,7 @@
 
     <!-- Page Counter -->
     <div class="text-xs text-base-content/60 mt-2 text-center">
-      Página {{ currentPageIndex + 1 }} de {{ visiblePages.length }}
+      {{ t('pageNavigation.pageCounter', { current: currentPageIndex + 1, total: visiblePages.length }) }}
     </div>
 
     <!-- Context Menu -->
@@ -58,16 +58,16 @@
     <!-- Rename Modal -->
     <div v-if="renameModal.show" class="modal modal-open">
       <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">Renombrar Página</h3>
+        <h3 class="font-bold text-lg mb-4">{{ t('pageNavigation.renamePage') }}</h3>
 
         <div class="form-control w-full mb-4">
           <label class="label">
-            <span class="label-text">Nuevo nombre</span>
+            <span class="label-text">{{ t('pageNavigation.newName') }}</span>
           </label>
           <input
             v-model="renameModal.newName"
             type="text"
-            placeholder="Nombre de la página"
+            :placeholder="t('pageNavigation.pageNamePlaceholder')"
             class="input input-bordered input-sm w-full"
             @keyup.enter="confirmRename"
           />
@@ -78,14 +78,14 @@
             @click="hideRenameModal"
             class="btn btn-ghost"
           >
-            Cancelar
+            {{ t('pageNavigation.cancel') }}
           </button>
           <button
             @click="confirmRename"
             :disabled="!renameModal.newName.trim()"
             class="btn btn-primary"
           >
-            Renombrar
+            {{ t('pageNavigation.rename') }}
           </button>
         </div>
       </div>
@@ -94,16 +94,16 @@
     <!-- Add Page Modal -->
     <div v-if="showAddPageModal" class="modal modal-open">
       <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">Añadir Nueva Página</h3>
+        <h3 class="font-bold text-lg mb-4">{{ t('pageNavigation.addNewPage') }}</h3>
 
         <div class="form-control w-full mb-4">
           <label class="label">
-            <span class="label-text">Nombre de la página</span>
+            <span class="label-text">{{ t('pageNavigation.pageName') }}</span>
           </label>
           <input
             v-model="newPageName"
             type="text"
-            placeholder="Ej: Juegos, Música, Trabajo..."
+            :placeholder="t('pageNavigation.pageNameExamples')"
             class="input input-bordered input-sm w-full"
             @keyup.enter="createPage"
           />
@@ -111,7 +111,7 @@
 
         <div class="form-control mb-4">
           <label class="label cursor-pointer">
-            <span class="label-text">Es una carpeta</span>
+            <span class="label-text">{{ t('pageNavigation.isFolder') }}</span>
             <input
               v-model="isFolder"
               type="checkbox"
@@ -120,7 +120,7 @@
           </label>
           <div class="label">
             <span class="label-text-alt text-base-content/60">
-              Las carpetas no aparecen en la navegación y sirven para organizar acciones
+              {{ t('pageNavigation.folderDescription') }}
             </span>
           </div>
         </div>
@@ -130,14 +130,14 @@
             @click="showAddPageModal = false"
             class="btn btn-ghost"
           >
-            Cancelar
+            {{ t('pageNavigation.cancel') }}
           </button>
           <button
             @click="createPage"
             :disabled="!newPageName.trim()"
             class="btn btn-primary"
           >
-            Crear Página
+            {{ t('pageNavigation.createPage') }}
           </button>
         </div>
       </div>
@@ -147,9 +147,12 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18nStore } from '../composables/useI18n'
 import { Plus, MoreVertical, Edit, Trash2 } from 'lucide-vue-next'
 import ContextMenu from './ContextMenu.vue'
 import type { PageData } from '../types/streamdeck'
+
+const { t } = useI18nStore()
 
 interface Props {
   currentPage: PageData | null
@@ -183,13 +186,13 @@ const pageMenu = ref({
 const pageMenuItems = computed(() => [
   {
     id: 'rename',
-    label: 'Renombrar',
+    label: t('pageNavigation.rename'),
     icon: Edit,
     danger: false
   },
   {
     id: 'delete',
-    label: 'Eliminar',
+    label: t('pageNavigation.delete'),
     icon: Trash2,
     danger: true
   }

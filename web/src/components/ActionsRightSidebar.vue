@@ -2,14 +2,14 @@
   <div class="w-80 bg-base-200 border-l border-base-300 flex flex-col h-screen">
     <!-- Header -->
     <div class="p-4 border-b border-base-300">
-      <h2 class="text-lg font-semibold mb-3">Biblioteca de Acciones</h2>
+      <h2 class="text-lg font-semibold mb-3">{{ t('actionsSidebar.actionsLibrary') }}</h2>
       
       <!-- Search -->
       <div class="form-control">
         <input 
           v-model="searchQuery"
           type="text" 
-          placeholder="Buscar acciones..."
+          :placeholder="t('actionsSidebar.searchActions')"
           class="input input-bordered input-sm w-full"
         />
       </div>
@@ -26,7 +26,7 @@
     <!-- Footer -->
     <div class="p-4 border-t border-base-300">
       <div class="text-xs text-base-content/70 text-center">
-        {{ availableActionsCount }} acciones disponibles
+        {{ t('actionsSidebar.availableActions', { count: availableActionsCount }) }}
       </div>
     </div>
   </div>
@@ -34,8 +34,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18nStore } from '../composables/useI18n'
 import ActionsLibrary from './ActionsLibrary.vue'
 import * as LucideIcons from 'lucide-vue-next'
+
+const { t } = useI18nStore()
 
 interface Props {
   plugins: any[]

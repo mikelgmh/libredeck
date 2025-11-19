@@ -30,7 +30,7 @@
       <div v-if="selectedButton !== null">
         <div class="mb-4">
           <h3 class="text-base font-semibold mb-2">
-            Botón {{ selectedButton + 1 }}
+            {{ t('sidebar.button') }} {{ selectedButton + 1 }}
           </h3>
           
           <ButtonEditor
@@ -56,7 +56,7 @@
       <!-- Actions Library (when no button selected) -->
       <div v-else class="flex flex-col items-center justify-center h-full text-center">
         <MousePointer :size="48" class="text-base-content/50 mb-4" />
-        <p class="text-lg text-base-content/70">Selecciona un botón</p>
+        <p class="text-lg text-base-content/70">{{ t('sidebar.selectButton') }}</p>
       </div>
     </div>
   </div>
@@ -64,10 +64,13 @@
 
 <script setup lang="ts">
 import { Grid3x3, MousePointer } from 'lucide-vue-next'
+import { useI18nStore } from '../composables/useI18n'
 import ProfileSelector from './ProfileSelector.vue'
 import ButtonEditor from './ButtonEditor.vue'
 import ActionsLibrary from './ActionsLibrary.vue'
 import type { ProfileData, ButtonData } from '../types/streamdeck'
+
+const { t } = useI18nStore()
 
 interface Props {
   connectionStatus: string

@@ -34,10 +34,12 @@
         :selectedProfile="selectedProfile"
         :gridCols="gridCols"
         :gridRows="gridRows"
+        :currentLocale="currentLocale"
         @profile-changed="handleProfileChange"
         @grid-size-change="changeGridSize"
         @show-qr="showQRModal"
         @show-profile-settings="showProfileSettingsModal"
+        @language-changed="switchLanguage"
       />
 
       <!-- StreamDeck Grid -->
@@ -92,6 +94,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { useStreamDeck } from '../composables/useStreamDeck'
+import { useI18nStore } from '../composables/useI18n'
 import Sidebar from './Sidebar.vue'
 import Toolbar from './Toolbar.vue'
 import StreamDeckGrid from './StreamDeckGrid.vue'
@@ -99,6 +102,17 @@ import ActionsRightSidebar from './ActionsRightSidebar.vue'
 import QRModal from './QRModal.vue'
 import ProfileSettingsModal from './ProfileSettingsModal.vue'
 import PageNavigation from './PageNavigation.vue'
+
+// Use i18n composable
+const { t, currentLocale, setLocale, loadSavedLocale } = useI18nStore()
+
+// Load saved locale on mount
+loadSavedLocale()
+
+// Language switcher function
+const switchLanguage = (newLocale: string) => {
+  setLocale(newLocale)
+}
 
 // QR Modal ref
 const qrModal = ref<InstanceType<typeof QRModal> | null>(null)
