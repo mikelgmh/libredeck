@@ -1,48 +1,90 @@
 <template>
-  <div class="flex h-screen bg-base-100 text-base-content">
-    <!-- Sidebar Izquierdo -->
-    <Sidebar
-      :connectionStatus="connectionStatus"
-      :connectionText="connectionText"
-      :profiles="profiles"
-      :selectedProfile="selectedProfile"
-      :selectedButton="selectedButton"
-      :buttonConfig="buttonConfig"
-      :plugins="plugins"
-      :availablePages="availablePages"
-      @profile-changed="handleProfileChange"
-      @profile-created="handleProfileCreate"
-      @update-button-label="updateButtonLabel"
-      @update-button-text-top="updateButtonTextTop"
-      @update-button-text-bottom="updateButtonTextBottom"
-      @update-button-font-size="updateButtonFontSize"
-      @update-button-icon="updateButtonIcon"
-      @update-button-emoji="updateButtonEmoji"
-      @update-button-background-color="updateButtonBackgroundColor"
-      @update-button-text-color="updateButtonTextColor"
-      @add-action="addAction"
-      @remove-action="removeAction"
-      @reorder-actions="reorderActions"
-      @update-action-parameter="(args) => updateActionParameter(args[0], args[1], args[2])"
-    />
-
-    <!-- Main Content -->
-    <div class="flex-1 flex flex-col">
-      <!-- Toolbar -->
-      <Toolbar
+  <div class="flex h-screen bg-base-100 text-base-content" :class="{ 'overflow-hidden': appStore.mode === 'deck' }">
+    <!-- Edit Mode Layout -->
+    <template v-if="appStore.mode === 'edit'">
+      <!-- Sidebar Izquierdo -->
+      <Sidebar
+        :connectionStatus="connectionStatus"
+        :connectionText="connectionText"
         :profiles="profiles"
         :selectedProfile="selectedProfile"
-        :gridCols="gridCols"
-        :gridRows="gridRows"
-        :currentLocale="currentLocale"
+        :selectedButton="selectedButton"
+        :buttonConfig="buttonConfig"
+        :plugins="plugins"
+        :availablePages="availablePages"
         @profile-changed="handleProfileChange"
-        @grid-size-change="changeGridSize"
-        @show-qr="showQRModal"
-        @show-profile-settings="showProfileSettingsModal"
-        @language-changed="switchLanguage"
+        @profile-created="handleProfileCreate"
+        @update-button-label="updateButtonLabel"
+        @update-button-text-top="updateButtonTextTop"
+        @update-button-text-bottom="updateButtonTextBottom"
+        @update-button-font-size="updateButtonFontSize"
+        @update-button-icon="updateButtonIcon"
+        @update-button-emoji="updateButtonEmoji"
+        @update-button-background-color="updateButtonBackgroundColor"
+        @update-button-text-color="updateButtonTextColor"
+        @add-action="addAction"
+        @remove-action="removeAction"
+        @reorder-actions="reorderActions"
+        @update-action-parameter="(args) => updateActionParameter(args[0], args[1], args[2])"
       />
 
-      <!-- StreamDeck Grid -->
+      <!-- Main Content -->
+      <div class="flex-1 flex flex-col">
+        <!-- Toolbar -->
+        <Toolbar
+          :profiles="profiles"
+          :selectedProfile="selectedProfile"
+          :gridCols="gridCols"
+          :gridRows="gridRows"
+          :currentLocale="currentLocale"
+          :currentMode="appStore.mode"
+          @profile-changed="handleProfileChange"
+          @grid-size-change="changeGridSize"
+          @show-qr="showQRModal"
+          @show-profile-settings="showProfileSettingsModal"
+          @language-changed="switchLanguage"
+          @mode-changed="appStore.setMode"
+        />
+
+        <!-- StreamDeck Grid -->
+        <StreamDeckGrid
+          :gridCols="gridCols"
+          :gridRows="gridRows"
+          :selectedButton="selectedButton"
+          :executingButtons="executingButtons"
+          :buttonConfig="buttonConfig"
+          :getButton="getButton"
+          :getButtonData="getButtonData"
+          :getButtonStyle="getButtonStyle"
+          :mode="appStore.mode"
+          @button-click="selectButton"
+          @button-execute="executeButton"
+          @button-delete="deleteButton"
+          @swap="handleSwap"
+          @grid-size-change="changeGridSize"
+          @mode-change="appStore.setMode"
+        />
+
+        <!-- Page Navigation -->
+        <PageNavigation
+          :currentPage="currentPage"
+          :pages="currentPages"
+          @page-selected="handlePageSelected"
+          @page-created="handlePageCreated"
+          @page-deleted="handlePageDeleted"
+          @page-renamed="handlePageRenamed"
+        />
+      </div>
+
+      <!-- Sidebar Derecho - Biblioteca de Acciones -->
+      <ActionsRightSidebar 
+        :plugins="plugins"
+      />
+    </template>
+
+    <!-- Deck Mode Layout -->
+    <template v-else>
+      <!-- Full Screen StreamDeck Grid -->
       <StreamDeckGrid
         :gridCols="gridCols"
         :gridRows="gridRows"
@@ -52,28 +94,15 @@
         :getButton="getButton"
         :getButtonData="getButtonData"
         :getButtonStyle="getButtonStyle"
+        :mode="appStore.mode"
         @button-click="selectButton"
         @button-execute="executeButton"
         @button-delete="deleteButton"
         @swap="handleSwap"
         @grid-size-change="changeGridSize"
+        @mode-change="appStore.setMode"
       />
-
-      <!-- Page Navigation -->
-      <PageNavigation
-        :currentPage="currentPage"
-        :pages="currentPages"
-        @page-selected="handlePageSelected"
-        @page-created="handlePageCreated"
-        @page-deleted="handlePageDeleted"
-        @page-renamed="handlePageRenamed"
-      />
-    </div>
-
-    <!-- Sidebar Derecho - Biblioteca de Acciones -->
-    <ActionsRightSidebar 
-      :plugins="plugins"
-    />
+    </template>
     
     <!-- QR Modal -->
     <QRModal ref="qrModal" />
@@ -93,8 +122,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
+import { createApp } from 'vue'
+import pinia from '../composables/pinia'
+import { useAppStore } from '../store/app'
 import { useStreamDeck } from '../composables/useStreamDeck'
 import { useI18nStore } from '../composables/useI18n'
+import { Edit, Grid3x3 } from 'lucide-vue-next'
 import Sidebar from './Sidebar.vue'
 import Toolbar from './Toolbar.vue'
 import StreamDeckGrid from './StreamDeckGrid.vue'
@@ -103,7 +136,12 @@ import QRModal from './QRModal.vue'
 import ProfileSettingsModal from './ProfileSettingsModal.vue'
 import PageNavigation from './PageNavigation.vue'
 
-// Use i18n composable
+// Configurar Pinia
+const app = createApp({})
+app.use(pinia)
+
+// Use stores
+const appStore = useAppStore()
 const { t, currentLocale, setLocale, loadSavedLocale } = useI18nStore()
 
 // Load saved locale on mount
@@ -112,6 +150,11 @@ loadSavedLocale()
 // Language switcher function
 const switchLanguage = (newLocale: string) => {
   setLocale(newLocale)
+}
+
+const handleLanguageChange = (event: Event) => {
+  const target = event.target as HTMLSelectElement
+  switchLanguage(target.value)
 }
 
 // QR Modal ref
@@ -334,6 +377,11 @@ const handleKeyDown = (event: KeyboardEvent) => {
   if (event.key === 'Delete' && selectedButton.value !== null) {
     event.preventDefault()
     deleteButton(selectedButton.value)
+  }
+  
+  // Allow switching back to edit mode from deck mode with Escape key
+  if (event.key === 'Escape' && appStore.mode === 'deck') {
+    appStore.setMode('edit')
   }
 }
 

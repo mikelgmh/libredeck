@@ -61,7 +61,7 @@ program
   .command('start')
   .description('Iniciar el daemon de LibreDeck')
   .option('-p, --port <port>', 'Puerto para la API HTTP', '3001')
-  .option('-w, --ws-port <port>', 'Puerto para WebSocket', '3002')
+  .option('-w, --ws-port <port>', 'Puerto para WebSocket', '3003')
   .option('-d, --detach', 'Ejecutar en segundo plano')
   .action(async (options) => {
     const spinner = ora('Iniciando LibreDeck daemon...').start();
@@ -155,7 +155,7 @@ program
       
       console.log(chalk.green('✓ Estado: Online'));
       console.log(chalk.blue(`📡 API: http://localhost:3001`));
-      console.log(chalk.blue(`🔌 WebSocket: ws://localhost:3002`));
+      console.log(chalk.blue(`🔌 WebSocket: ws://localhost:3003`));
       console.log(chalk.gray(`🕒 Uptime: ${new Date(health.timestamp).toLocaleString()}`));
       
       if (health.websocket) {

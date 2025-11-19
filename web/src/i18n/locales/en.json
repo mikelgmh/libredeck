@@ -5,7 +5,11 @@
         "showQR": "Show QR code",
         "fullscreen": "Fullscreen",
         "exitFullscreen": "Exit fullscreen",
-        "language": "Language"
+        "language": "Language",
+        "edit": "Edit",
+        "deck": "Deck",
+        "editMode": "Edit mode",
+        "deckMode": "Deck mode"
     },
     "sidebar": {
         "button": "Button",
@@ -50,6 +54,7 @@
         "increaseRows": "Increase rows",
         "press": "Press",
         "delete": "Delete",
-        "createButton": "Create button"
+        "createButton": "Create button",
+        "exitDeckMode": "Exit deck mode"
     }
 }

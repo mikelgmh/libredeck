@@ -1,7 +1,19 @@
 <template>
-  <div class="flex-1 p-8 flex flex-col items-center justify-center gap-4">
-    <!-- Grid Size Controls -->
-    <div class="flex items-center gap-3">
+  <div :class="[
+    'flex flex-col relative',
+    props.mode === 'edit' ? 'flex-1 p-8 items-center justify-center gap-4' : 'h-full w-full items-center justify-center'
+  ]">
+    <!-- Exit Deck Mode Button - Only in Deck Mode -->
+    <button
+      v-if="props.mode === 'deck'"
+      @click="$emit('mode-change', 'edit')"
+      class="absolute top-4 right-4 z-50 btn btn-circle btn-primary btn-sm shadow-lg"
+      :title="t('streamDeckGrid.exitDeckMode')"
+    >
+      <Edit :size="16" />
+    </button>
+    <!-- Grid Size Controls - Only in Edit Mode -->
+    <div v-if="props.mode === 'edit'" class="flex items-center gap-3">
       <span class="text-sm font-medium text-base-content/70">{{ t('streamDeckGrid.gridSize') }}</span>
       
       <div class="flex items-center gap-2">
@@ -13,7 +25,7 @@
         >
           <Minus :size="14" />
         </button>
-        <span class="text-sm font-mono min-w-[3rem] text-center">{{ gridCols }}×{{ gridRows }}</span>
+        <span class="text-sm font-mono min-w-12 text-center">{{ gridCols }}×{{ gridRows }}</span>
         <button 
           @click="$emit('grid-size-change', 1, 0)" 
           class="btn btn-ghost btn-xs btn-square"
@@ -49,7 +61,10 @@
     <div
       ref="container"
       data-swapy-container
-      class="grid gap-2 p-4 bg-base-300 rounded-2xl border-2 border-base-300"
+      :class="[
+        'grid bg-base-300 rounded-2xl border-2 border-base-300',
+        props.mode === 'edit' ? 'gap-2 p-4' : 'gap-4 p-8 h-full w-full aspect-square max-w-full max-h-full'
+      ]"
       :style="{ 
         gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
         gridTemplateRows: `repeat(${gridRows}, 1fr)` 
@@ -59,7 +74,10 @@
         v-for="index in (gridCols * gridRows)"
         :key="`slot-${index - 1}`"
         :data-swapy-slot="`slot-${index - 1}`"
-        class="slot-container w-20 h-20 flex items-center justify-center"
+        :class="[
+          'slot-container flex items-center justify-center',
+          props.mode === 'edit' ? 'w-20 h-20' : 'w-full h-full'
+        ]"
         @contextmenu.prevent.stop="showContextMenu($event, index - 1)"
       >
         <div 
@@ -71,8 +89,10 @@
             @dblclick="$emit('button-execute', index - 1)"
             :class="[
               'deck-button',
-              'w-full h-full rounded-xl border-2 transition-all duration-200 relative',
-              'flex flex-col items-center justify-center gap-1 p-2',
+              'w-full h-full border-2 transition-all duration-200 relative',
+              'flex flex-col items-center justify-center',
+              props.mode === 'edit' ? 'gap-1' : 'gap-2',
+              props.mode === 'edit' ? 'rounded-xl p-2' : 'rounded-2xl p-3',
               selectedButton === (index - 1) ? 'border-primary bg-primary/20' : 'border-base-content/20 bg-base-100',
               'hover:border-primary/50 cursor-grab active:cursor-grabbing',
               executingButtons.includes(index - 1) ? 'animate-pulse bg-success/20 border-success' : '',
@@ -85,23 +105,32 @@
               <!-- Top Text -->
               <div 
                 v-if="getButtonData(index - 1)?.textTop"
-                class="text-xs font-medium text-center leading-tight w-full"
-                :style="{ fontSize: (getButtonData(index - 1)?.fontSize || 14) + 'px' }"
+                :class="[
+                  'font-medium text-center leading-tight w-full',
+                  props.mode === 'edit' ? 'text-xs' : 'text-sm'
+                ]"
+                :style="{ fontSize: (getButtonData(index - 1)?.fontSize || (props.mode === 'edit' ? 14 : 18)) + 'px' }"
               >
                 {{ getButtonData(index - 1).textTop }}
               </div>
               
               <!-- Icon (lucide) or Emoji or Dynamic Value -->
-              <div class="text-2xl flex items-center justify-center">
+              <div :class="[
+                'flex items-center justify-center',
+                props.mode === 'edit' ? 'text-2xl' : 'text-4xl'
+              ]">
                 <!-- Show dynamic value if available (any plugin with dynamic actions) -->
-                <span v-if="getButtonData(index - 1)?.dynamicValue" class="text-lg font-mono">
+                <span v-if="getButtonData(index - 1)?.dynamicValue" :class="[
+                  'font-mono',
+                  props.mode === 'edit' ? 'text-lg' : 'text-xl'
+                ]">
                   {{ getButtonData(index - 1).dynamicValue }}
                 </span>
                 <!-- Otherwise show icon or emoji -->
                 <component 
                   v-else-if="getButtonData(index - 1)?.icon" 
                   :is="getLucideIcon(getButtonData(index - 1)?.icon)"
-                  :size="32"
+                  :size="props.mode === 'edit' ? 32 : 48"
                 />
                 <span v-else-if="getButtonData(index - 1)?.emoji">{{ getButtonData(index - 1).emoji }}</span>
                 <span v-else-if="selectedButton === (index - 1)" class="opacity-50">⚡</span>
@@ -111,8 +140,11 @@
               <!-- Bottom Text -->
               <div 
                 v-if="getButtonData(index - 1)?.textBottom"
-                class="text-xs font-medium text-center leading-tight w-full"
-                :style="{ fontSize: (getButtonData(index - 1)?.fontSize || 14) + 'px' }"
+                :class="[
+                  'font-medium text-center leading-tight w-full',
+                  props.mode === 'edit' ? 'text-xs' : 'text-sm'
+                ]"
+                :style="{ fontSize: (getButtonData(index - 1)?.fontSize || (props.mode === 'edit' ? 14 : 18)) + 'px' }"
               >
                 {{ getButtonData(index - 1).textBottom }}
               </div>
@@ -120,7 +152,10 @@
               <!-- Action Count -->
               <div 
                 v-if="getButtonData(index - 1)?.actions?.length" 
-                class="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-content rounded-full text-xs flex items-center justify-center font-bold"
+                :class="[
+                  'bg-primary text-primary-content rounded-full text-xs flex items-center justify-center font-bold absolute -top-1 -right-1',
+                  props.mode === 'edit' ? 'w-5 h-5' : 'w-6 h-6 text-sm'
+                ]"
               >
                 {{ getButtonData(index - 1)?.actions?.length || 0 }}
               </div>
@@ -128,7 +163,10 @@
               <!-- Execution Feedback -->
               <div 
                 v-if="executingButtons.includes(index - 1)" 
-                class="absolute -bottom-1 -right-1 w-6 h-6 bg-warning text-warning-content rounded-full text-sm flex items-center justify-center font-bold animate-pulse"
+                :class="[
+                  'bg-warning text-warning-content rounded-full text-sm flex items-center justify-center font-bold animate-pulse absolute -bottom-1 -right-1',
+                  props.mode === 'edit' ? 'w-6 h-6' : 'w-8 h-8'
+                ]"
                 data-cy="execution-feedback"
               >
                 ⚡
@@ -142,18 +180,24 @@
                 <!-- Top Text -->
                 <div 
                   v-if="buttonConfig.textTop"
-                  class="text-xs font-medium text-center leading-tight w-full"
-                  :style="{ fontSize: (buttonConfig.fontSize || 14) + 'px' }"
+                  :class="[
+                    'font-medium text-center leading-tight w-full',
+                    props.mode === 'edit' ? 'text-xs' : 'text-sm'
+                  ]"
+                  :style="{ fontSize: (buttonConfig.fontSize || (props.mode === 'edit' ? 14 : 18)) + 'px' }"
                 >
                   {{ buttonConfig.textTop }}
                 </div>
                 
                 <!-- Icon or Emoji -->
-                <div class="text-2xl flex items-center justify-center">
+                <div :class="[
+                  'flex items-center justify-center',
+                  props.mode === 'edit' ? 'text-2xl' : 'text-4xl'
+                ]">
                   <component 
                     v-if="buttonConfig.icon" 
                     :is="getLucideIcon(buttonConfig.icon)"
-                    :size="32"
+                    :size="props.mode === 'edit' ? 32 : 48"
                   />
                   <span v-else-if="buttonConfig.emoji">{{ buttonConfig.emoji }}</span>
                   <span v-else class="opacity-50">⚡</span>
@@ -162,8 +206,11 @@
                 <!-- Bottom Text -->
                 <div 
                   v-if="buttonConfig.textBottom"
-                  class="text-xs font-medium text-center leading-tight w-full"
-                  :style="{ fontSize: (buttonConfig.fontSize || 14) + 'px' }"
+                  :class="[
+                    'font-medium text-center leading-tight w-full',
+                    props.mode === 'edit' ? 'text-xs' : 'text-sm'
+                  ]"
+                  :style="{ fontSize: (buttonConfig.fontSize || (props.mode === 'edit' ? 14 : 18)) + 'px' }"
                 >
                   {{ buttonConfig.textBottom }}
                 </div>
@@ -178,10 +225,16 @@
               
               <!-- Default empty state -->
               <template v-else>
-                <div class="text-2xl opacity-50">
-                  <Plus :size="24" />
+                <div :class="[
+                  'opacity-50',
+                  props.mode === 'edit' ? 'text-2xl' : 'text-4xl'
+                ]">
+                  <Plus :size="props.mode === 'edit' ? 24 : 36" />
                 </div>
-                <div class="text-xs opacity-50">{{ index }}</div>
+                <div :class="[
+                  'opacity-50',
+                  props.mode === 'edit' ? 'text-xs' : 'text-sm'
+                ]">{{ index }}</div>
               </template>
             </template>
           </button>
@@ -204,7 +257,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { createSwapy, type Swapy } from 'swapy'
-import { Plus, Play, Trash2, Minus } from 'lucide-vue-next'
+import { Plus, Play, Trash2, Minus, Edit } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import ContextMenu from './ContextMenu.vue'
 import { useI18nStore } from '../composables/useI18n'
@@ -221,6 +274,7 @@ interface Props {
   getButton: (position: number) => ButtonEntity | undefined
   getButtonData: (position: number) => any
   getButtonStyle: (position: number) => any
+  mode: 'edit' | 'deck'
 }
 
 interface Emits {
@@ -229,6 +283,7 @@ interface Emits {
   (e: 'button-delete', position: number): void
   (e: 'swap', event: any): void
   (e: 'grid-size-change', deltaX: number, deltaY: number): void
+  (e: 'mode-change', mode: 'edit' | 'deck'): void
 }
 
 const props = defineProps<Props>()

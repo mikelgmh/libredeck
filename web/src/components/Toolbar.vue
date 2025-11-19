@@ -2,6 +2,32 @@
   <div class="bg-base-200 border-b border-base-300 p-4">
     <div class="flex justify-between items-center">
       <div class="flex items-center gap-4">
+        <!-- Mode Toggle Buttons -->
+        <div class="join join-vertical lg:join-horizontal">
+          <button 
+            @click="$emit('mode-changed', 'edit')"
+            :class="[
+              'btn join-item btn-sm',
+              currentMode === 'edit' ? 'btn-primary' : 'btn-ghost'
+            ]"
+            :title="t('toolbar.editMode')"
+          >
+            <Edit :size="16" />
+            <span class="hidden sm:inline ml-1">{{ t('toolbar.edit') }}</span>
+          </button>
+          <button 
+            @click="$emit('mode-changed', 'deck')"
+            :class="[
+              'btn join-item btn-sm',
+              currentMode === 'deck' ? 'btn-primary' : 'btn-ghost'
+            ]"
+            :title="t('toolbar.deckMode')"
+          >
+            <Grid3x3 :size="16" />
+            <span class="hidden sm:inline ml-1">{{ t('toolbar.deck') }}</span>
+          </button>
+        </div>
+
         <select 
           :value="selectedProfile" 
           @change="handleProfileChange" 
@@ -57,7 +83,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { QrCode, Maximize2, Minimize2, Settings } from 'lucide-vue-next'
+import { QrCode, Maximize2, Minimize2, Settings, Edit, Grid3x3 } from 'lucide-vue-next'
 import { useI18nStore } from '../composables/useI18n'
 import type { ProfileData } from '../types/streamdeck'
 
@@ -69,6 +95,7 @@ interface Props {
   gridCols: number
   gridRows: number
   currentLocale: string
+  currentMode: 'edit' | 'deck'
 }
 
 interface Emits {
@@ -77,6 +104,7 @@ interface Emits {
   (e: 'show-qr'): void
   (e: 'show-profile-settings'): void
   (e: 'language-changed', locale: string): void
+  (e: 'mode-changed', mode: 'edit' | 'deck'): void
 }
 
 const props = defineProps<Props>()
