@@ -5,7 +5,15 @@ import { ActionRunner } from './action-runner';
 import { windowWatcher } from './window-watcher';
 import { DatabaseService } from './db';
 import { setupAPIRoutes } from './api/routes';
-const Tray = require('trayicon');
+
+// Import opcional del tray (solo funciona en Windows)
+let Tray: any = null;
+try {
+  Tray = require('systray');
+} catch (error) {
+  console.log('ℹ️ Tray module not available (this is normal on Linux/macOS)');
+}
+
 const path = require('path');
 
 const PORT = Number(process.env.PORT) || 3001;
@@ -77,6 +85,12 @@ class LibreDeckDaemon {
 
   private initializeTray() {
     try {
+      // Solo intentar inicializar tray en Windows y si el módulo está disponible
+      if (process.platform !== 'win32' || !Tray) {
+        console.log('ℹ️ Tray icon not supported on this platform or module not available');
+        return;
+      }
+
       Tray.create({ title: 'LibreDeck Daemon' }, (tray) => {
         const openItem = tray.item("Abrir LibreDeck", () => {
           const { exec } = require('child_process');
@@ -107,7 +121,7 @@ class LibreDeckDaemon {
         console.log('✓ Tray icon initialized');
       });
     } catch (error) {
-      console.error('Failed to initialize tray:', error);
+      console.log('ℹ️ Tray icon not available on this system (this is normal on Linux/macOS)');
     }
   }
 
