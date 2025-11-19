@@ -37,7 +37,7 @@ jobs:
     - name: Install dependencies (Web)
       run: |
         cd web
-        npm install
+        bun install
 
     - name: Run tests
       run: bun run test
