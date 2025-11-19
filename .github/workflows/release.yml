@@ -102,9 +102,7 @@ jobs:
         bun run build
 
     - name: Copy Web dist to Daemon
-      run: |
-        powershell -Command "if (!(Test-Path daemon/web-dist)) { mkdir daemon/web-dist }" 2>/dev/null || mkdir -p daemon/web-dist 2>/dev/null || true
-        powershell -Command "if (Test-Path web/dist) { Copy-Item -Path web/dist/* -Destination daemon/web-dist/ -Recurse -Force }" 2>/dev/null || cp -r web/dist/* daemon/web-dist/ 2>/dev/null || true
+      run: node scripts/copy-web-dist.js
 
     - name: Build Unified Daemon
       run: |
