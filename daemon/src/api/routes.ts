@@ -719,7 +719,70 @@ export async function setupAPIRoutes(
           return jsonResponse(mockMetrics)
         }
       }
-    }    // 404 - Route not found
+    }
+
+    // Files endpoints
+    if (path === '/api/v1/files/select') {
+      if (method === 'GET') {
+        try {
+          // Abrir diálogo de selección de archivos usando PowerShell
+          const powershellScript = `
+            try {
+              Add-Type -AssemblyName System.Windows.Forms
+              $fileDialog = New-Object System.Windows.Forms.OpenFileDialog
+              $fileDialog.Title = "Seleccionar archivo o aplicación"
+              $fileDialog.Filter = "Todos los archivos (*.*)|*.*|Aplicaciones (*.exe)|*.exe"
+              $fileDialog.FilterIndex = 1
+              $fileDialog.RestoreDirectory = $true
+              
+              $result = $fileDialog.ShowDialog()
+              if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+                $selectedFile = $fileDialog.FileName
+                $fileName = [System.IO.Path]::GetFileName($selectedFile)
+                
+                @{
+                  success = $true
+                  path = $selectedFile
+                  filename = $fileName
+                } | ConvertTo-Json -Compress
+              } else {
+                @{ success = $false; cancelled = $true } | ConvertTo-Json -Compress
+              }
+            } catch {
+              @{ error = $_.Exception.Message } | ConvertTo-Json -Compress
+            }
+          `.trim()
+
+          const proc = Bun.spawn({
+            cmd: ['powershell.exe', '-Command', powershellScript],
+            stdio: ['ignore', 'pipe', 'pipe']
+          })
+
+          const output = await new Response(proc.stdout).text()
+          const error = await new Response(proc.stderr).text()
+
+          await proc.exited
+
+          if (proc.exitCode === 0 && output.trim()) {
+            try {
+              const result = JSON.parse(output.trim())
+              return jsonResponse(result)
+            } catch (parseError) {
+              console.error('Failed to parse file selection result:', parseError)
+              return jsonResponse({ error: 'Failed to parse file selection result' }, 500)
+            }
+          } else {
+            console.error('PowerShell file selection failed:', error)
+            return jsonResponse({ error: 'File selection failed' }, 500)
+          }
+        } catch (error) {
+          console.error('File selection error:', error)
+          return jsonResponse({ error: 'Internal server error during file selection' }, 500)
+        }
+      }
+    }
+
+    // 404 - Route not found
     return jsonResponse({ error: 'API endpoint not found' }, 404);
 
   } catch (error) {
