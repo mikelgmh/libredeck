@@ -9,6 +9,8 @@
     "start": "bun run src/server.ts",
     "build": "bun build src/server.ts --outdir ./dist --target bun",
     "test": "bun test",
+    "test:watch": "bun test --watch",
+    "test:coverage": "bun test --coverage",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write src/**/*.ts"
   },
@@ -19,11 +21,11 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/uuid": "^9.0.6",
     "@types/mime-types": "^2.1.4",
-    "eslint": "^8.52.0",
+    "@types/uuid": "^9.0.6",
     "@typescript-eslint/eslint-plugin": "^6.9.0",
     "@typescript-eslint/parser": "^6.9.0",
+    "eslint": "^8.52.0",
     "prettier": "^3.0.3"
   },
   "keywords": [
