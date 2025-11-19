@@ -176,9 +176,10 @@ export function useStreamDeck() {
         connectionStatus.value = 'bg-success'
         connectionText.value = 'Conectado'
 
+        console.log('🔌 WebSocket connected, subscribing to topics...')
         ws?.send(JSON.stringify({
           type: 'subscribe',
-          payload: { topics: ['profiles', 'buttons', 'actions', 'plugins', 'page'] }
+          payload: { topics: ['profiles', 'buttons', 'actions', 'plugins', 'pages'] }
         }))
       }
 
@@ -203,8 +204,47 @@ export function useStreamDeck() {
 
   const handleWebSocketMessage = async (message: any) => {
     switch (message.type) {
+      case 'connected':
+        console.log('🔗 WebSocket connected:', message.payload)
+        break
+      case 'subscribed':
+        console.log('✅ WebSocket subscribed to topics:', message.payload)
+        break
       case 'profile.updated':
         loadProfiles()
+        break
+      case 'page.updated':
+        // Reload pages when a page is updated (renamed) on another device
+        if (selectedProfile.value) {
+          const pages = await apiRequest(`/pages?profileId=${selectedProfile.value}`)
+          currentPages.value = pages
+        }
+        break
+      case 'page.created':
+        // Reload pages when a page is created on another device
+        if (selectedProfile.value) {
+          const pages = await apiRequest(`/pages?profileId=${selectedProfile.value}`)
+          currentPages.value = pages
+        }
+        break
+      case 'page.deleted':
+        // Reload pages when a page is deleted on another device
+        if (selectedProfile.value) {
+          const pages = await apiRequest(`/pages?profileId=${selectedProfile.value}`)
+          currentPages.value = pages
+
+          // If current page was deleted, select another one
+          if (currentPage.value && !pages.find(p => p.id === currentPage.value?.id)) {
+            const remainingPages = pages.filter(p => p.is_folder === 0)
+            if (remainingPages.length > 0) {
+              await selectPage(remainingPages[0].id)
+            } else {
+              currentPage.value = null
+              currentButtons.value = []
+              selectedButton.value = null
+            }
+          }
+        }
         break
       case 'button.created':
         if (currentPage.value && !isSwapping.value) {
@@ -228,11 +268,18 @@ export function useStreamDeck() {
         break
       case 'page.navigate':
         console.log('🧭 Page navigation requested:', message.payload)
+        console.log('📥 Received page.navigate, calling selectPage with isRemotePageChange = true')
         isRemotePageChange.value = true
-        if (message.payload.pageId) {
-          await selectPage(message.payload.pageId)
+        try {
+          if (message.payload.pageId) {
+            await selectPage(message.payload.pageId)
+          }
+          console.log('✅ Page navigation completed')
+        } catch (error) {
+          console.error('❌ Error during page navigation:', error)
+        } finally {
+          isRemotePageChange.value = false
         }
-        isRemotePageChange.value = false
         break
       case 'profile.navigate':
         console.log('👤 Profile navigation requested:', message.payload)
@@ -980,10 +1027,13 @@ export function useStreamDeck() {
 
     // Broadcast page change to other devices (only for local changes)
     if (!isRemotePageChange.value) {
+      console.log('📤 Sending page.select message:', { pageId })
       ws?.send(JSON.stringify({
         type: 'page.select',
         payload: { pageId }
       }))
+    } else {
+      console.log('🔕 Skipping page.select broadcast (remote change)')
     }
   }
 

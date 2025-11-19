@@ -110,7 +110,7 @@ export async function setupAPIRoutes(
 
         try {
           db.createPage(page);
-          services.wsManager.broadcastPageUpdate(page.id, page);
+          services.wsManager.broadcastPageCreated(page.id, page);
 
           return jsonResponse(page, 201);
         } catch (error) {
@@ -160,7 +160,7 @@ export async function setupAPIRoutes(
         }
 
         db.deletePage(pageId);
-        services.wsManager.broadcast('page.deleted', { pageId }, 'pages');
+        services.wsManager.broadcastPageDeleted(pageId);
         return jsonResponse({ success: true });
       }
     }
@@ -260,7 +260,7 @@ export async function setupAPIRoutes(
                 pageId: result.result.pageId,
                 pageName: result.result.pageName,
                 context
-              }, 'page');
+              }, 'pages');
             }
           } else {
             services.wsManager.broadcastActionError(actionId, result.error);

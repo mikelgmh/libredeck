@@ -107,9 +107,11 @@ export class WebSocketManager {
 
       case 'page.select':
         const { pageId } = message.payload;
+        console.log('📨 Received page.select:', { pageId, clientId })
         // Broadcast to all other subscribed clients (exclude sender)
         this.clients.forEach((otherClient, otherClientId) => {
-          if (otherClientId !== clientId && otherClient.subscriptions.has('page')) {
+          if (otherClientId !== clientId && otherClient.subscriptions.has('pages')) {
+            console.log('📤 Broadcasting page.navigate to client:', otherClientId)
             this.sendToClient(otherClientId, {
               type: 'page.navigate',
               payload: { pageId },
@@ -147,10 +149,12 @@ export class WebSocketManager {
     const client = this.clients.get(clientId);
     if (!client) return;
 
+    console.log('📋 Client', clientId, 'subscribing to topics:', topics)
     topics.forEach(topic => {
       client.subscriptions.add(topic);
     });
 
+    console.log('✅ Client', clientId, 'subscriptions:', Array.from(client.subscriptions))
     this.sendToClient(clientId, {
       type: 'subscribed',
       payload: { topics, subscriptions: Array.from(client.subscriptions) }
@@ -230,16 +234,16 @@ export class WebSocketManager {
     this.broadcast('profile.updated', { profileId, profile }, 'profiles');
   }
 
+  public broadcastPageCreated(pageId: string, page: any): void {
+    this.broadcast('page.created', { pageId, page }, 'pages');
+  }
+
   public broadcastPageUpdate(pageId: string, page: any): void {
     this.broadcast('page.updated', { pageId, page }, 'pages');
   }
 
-  public broadcastButtonUpdate(buttonId: string, button: any): void {
-    this.broadcast('button.updated', { buttonId, button }, 'buttons');
-  }
-
-  public broadcastButtonDeleted(buttonId: string): void {
-    this.broadcast('button.deleted', { buttonId }, 'buttons');
+  public broadcastPageDeleted(pageId: string): void {
+    this.broadcast('page.deleted', { pageId }, 'pages');
   }
 
   public broadcastActionStarted(actionId: string, context: any): void {
