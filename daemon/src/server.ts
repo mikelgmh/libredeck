@@ -15,6 +15,7 @@ try {
 }
 
 const path = require('path');
+const fs = require('fs');
 
 const PORT = Number(process.env.PORT) || 3001;
 const WS_PORT = Number(process.env.WS_PORT) || 3003;
@@ -303,32 +304,62 @@ class LibreDeckDaemon {
         // Servir web-dist (UI embebida)
         try {
           let filePath = url.pathname === '/' ? '/index.html' : url.pathname;
-          const fullPath = path.join(__dirname, '..', 'web-dist', filePath.slice(1));
-          const file = Bun.file(fullPath);
-          if (await file.exists()) {
-            return new Response(file, {
-              headers: {
-                ...corsHeaders,
-                'Content-Type': this.getContentType(filePath)
+
+          // Buscar archivos web-dist en múltiples ubicaciones posibles
+          const possiblePaths = [
+            path.join(process.cwd(), 'web-dist'),           // Desde CWD
+            path.join(__dirname, '..', 'web-dist'),         // Desde src (desarrollo)
+            path.join(__dirname, 'web-dist'),               // Desde el directorio del ejecutable
+            path.join(path.dirname(process.execPath), 'web-dist') // Desde el directorio del ejecutable
+          ];
+
+          for (const basePath of possiblePaths) {
+            const fullPath = path.join(basePath, filePath.slice(1));
+            try {
+              const file = Bun.file(fullPath);
+              if (await file.exists()) {
+                return new Response(file, {
+                  headers: {
+                    ...corsHeaders,
+                    'Content-Type': this.getContentType(filePath)
+                  }
+                });
               }
-            });
+            } catch (error) {
+              // Continuar buscando en la siguiente ubicación
+            }
           }
         } catch (error) {
           console.error('Error serving web file:', error);
         }
-        // Fallback a index.html para SPA
-        const indexPath = path.join(__dirname, '..', 'web-dist', 'index.html');
-        const indexFile = Bun.file(indexPath);
-        if (await indexFile.exists()) {
-          return new Response(indexFile, {
-            headers: {
-              ...corsHeaders,
-              'Content-Type': 'text/html'
+
+        // Fallback a index.html para SPA - buscar en las mismas ubicaciones
+        const possibleIndexPaths = [
+          path.join(process.cwd(), 'web-dist', 'index.html'),
+          path.join(__dirname, '..', 'web-dist', 'index.html'),
+          path.join(__dirname, 'web-dist', 'index.html'),
+          path.join(path.dirname(process.execPath), 'web-dist', 'index.html')
+        ];
+
+        for (const indexPath of possibleIndexPaths) {
+          try {
+            const indexFile = Bun.file(indexPath);
+            if (await indexFile.exists()) {
+              return new Response(indexFile, {
+                headers: {
+                  ...corsHeaders,
+                  'Content-Type': 'text/html'
+                }
+              });
             }
-          });
+          } catch (error) {
+            // Continuar buscando
+          }
         }
 
-        return new Response(`LibreDeck Frontend Server<br>__dirname: ${__dirname}<br>index.html path: ${path.join(__dirname, '..', 'web-dist', 'index.html')}<br>exists: ${await Bun.file(path.join(__dirname, '..', 'web-dist', 'index.html')).exists()}`, {
+        // Debug info si no se encuentra nada
+        const debugInfo = possibleIndexPaths.map(p => `${p}: ${fs.existsSync(p)}`).join('<br>');
+        return new Response(`LibreDeck Frontend Server<br>__dirname: ${__dirname}<br>CWD: ${process.cwd()}<br>execPath: ${process.execPath}<br><br>Checked paths:<br>${debugInfo}`, {
           headers: {
             ...corsHeaders,
             'Content-Type': 'text/html'
