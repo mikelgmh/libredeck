@@ -8,7 +8,12 @@
       </p>
       
       <div class="qr-container">
+        <div v-if="isLoadingIP" class="loading-container">
+          <div class="loading-spinner"></div>
+          <p>Obteniendo dirección IP...</p>
+        </div>
         <QrcodeVue 
+          v-else
           :value="networkUrl" 
           :size="280" 
           level="M"
@@ -18,13 +23,14 @@
       </div>
       
       <div class="url-display">
-        <code>{{ networkUrl }}</code>
+        <code v-if="!isLoadingIP">{{ networkUrl }}</code>
+        <code v-else>Cargando...</code>
       </div>
       
       <div class="modal-buttons">
-        <button @click="copyUrl" class="modal-action mt-0">
+        <button @click="copyUrl" class="modal-action mt-0" :disabled="isLoadingIP">
           <Copy :size="16" />
-          Copiar URL
+          {{ isLoadingIP ? 'Cargando...' : 'Copiar URL' }}
         </button>
         <button @click="closeModal" class="modal-close">
           Cerrar
@@ -77,6 +83,11 @@ onMounted(() => {
 })
 
 const copyUrl = async () => {
+  if (isLoadingIP.value) {
+    console.log('Aún cargando la IP...')
+    return
+  }
+  
   try {
     await navigator.clipboard.writeText(networkUrl.value)
     console.log('URL copiada al portapapeles')
@@ -85,10 +96,55 @@ const copyUrl = async () => {
   }
 }
 
-// Obtener la URL actual del navegador
+// Obtener la URL actual del navegador con IP de red local si está disponible
 const networkUrl = ref('')
-onMounted(() => {
-  networkUrl.value = window.location.origin
+const isLoadingIP = ref(true)
+
+const getLocalIP = () => {
+  return new Promise<string>((resolve, reject) => {
+    // Si ya tenemos una IP que no es localhost, usarla
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      resolve(window.location.hostname)
+      return
+    }
+
+    // Usar WebRTC para obtener la IP local
+    const pc = new RTCPeerConnection({ iceServers: [] })
+    pc.createDataChannel('')
+    
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        const candidate = event.candidate.candidate
+        const ipMatch = candidate.match(/(\d+\.\d+\.\d+\.\d+)/)
+        if (ipMatch && ipMatch[1] !== '127.0.0.1') {
+          resolve(ipMatch[1])
+          pc.close()
+        }
+      }
+    }
+    
+    pc.createOffer()
+      .then(offer => pc.setLocalDescription(offer))
+      .catch(reject)
+    
+    // Timeout después de 3 segundos
+    setTimeout(() => {
+      reject(new Error('Timeout getting local IP'))
+    }, 3000)
+  })
+}
+
+onMounted(async () => {
+  try {
+    const localIP = await getLocalIP()
+    networkUrl.value = `${window.location.protocol}//${localIP}:${window.location.port}`
+  } catch (error) {
+    // Fallback a localhost si no se puede obtener la IP local
+    console.warn('Could not get local IP, using localhost:', error)
+    networkUrl.value = window.location.origin
+  } finally {
+    isLoadingIP.value = false
+  }
 })
 
 defineExpose({
@@ -190,6 +246,38 @@ defineExpose({
   padding: 1.5rem;
   border-radius: 1rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Loading Container */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-container p {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin: 0;
 }
 
 /* URL Display */
@@ -244,9 +332,15 @@ defineExpose({
   color: white;
 }
 
-.modal-action:hover {
+.modal-action:hover:not(:disabled) {
   opacity: 0.9;
   box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+}
+
+.modal-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .modal-close {
