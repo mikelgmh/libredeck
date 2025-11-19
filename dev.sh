@@ -105,16 +105,35 @@ start_dev() {
     # Trap para limpiar procesos al salir
     trap 'kill $(jobs -p) 2>/dev/null' EXIT
     
-    echo -e "${BLUE}🔧 Iniciando daemon...${NC}"
+    echo -e "${BLUE}🔧 Iniciando daemon (modo dev - sin frontend embebido)...${NC}"
+    export DEV_MODE=true
     cd daemon && bun run start &
     DAEMON_PID=$!
     
-    echo -e "${BLUE}🌐 Iniciando frontend...${NC}"
+    echo -e "${BLUE}🌐 Iniciando frontend dev server...${NC}"
     cd web && npm run dev -- --host &
     WEB_PID=$!
     
     # Esperar a que los servicios estén listos
-    sleep 5
+    sleep 8
+    
+    # Detectar puerto del frontend dev server
+    FRONTEND_PORT=""
+    for port in {3000..4000}; do
+        if curl -s http://localhost:$port > /dev/null 2>&1; then
+            response=$(curl -s http://localhost:$port)
+            # Evitar detectar el puerto del daemon (que responde con "LibreDeck API Server")
+            if echo "$response" | grep -q "astro\|vite\|<title>" && ! echo "$response" | grep -q "LibreDeck API Server"; then
+                FRONTEND_PORT=$port
+                break
+            fi
+        fi
+    done
+    
+    # Fallback al puerto por defecto de Astro
+    if [ -z "$FRONTEND_PORT" ]; then
+        FRONTEND_PORT=4321
+    fi
     
     # Obtener IP local
     if command -v hostname &> /dev/null; then
@@ -127,13 +146,21 @@ start_dev() {
     
     echo -e "${GREEN}🚀 LibreDeck está ejecutándose:${NC}"
     echo -e "   📡 API: ${BLUE}http://localhost:3001${NC}"
-    echo -e "   🌐 Panel Local: ${BLUE}http://localhost:4321${NC}"
+    echo -e "   🌐 Panel Local: ${BLUE}http://localhost:$FRONTEND_PORT${NC}"
     if [ -n "$LOCAL_IP" ]; then
-        echo -e "   🌐 Panel Red LAN: ${BLUE}http://${LOCAL_IP}:4321${NC}"
+        echo -e "   🌐 Panel Red LAN: ${BLUE}http://${LOCAL_IP}:$FRONTEND_PORT${NC}"
     fi
-    echo -e "   🔌 WebSocket: ${BLUE}ws://localhost:3002${NC}"
+    echo -e "   🔌 WebSocket: ${BLUE}ws://localhost:3003${NC}"
     echo ""
     echo -e "${YELLOW}Presiona Ctrl+C para detener${NC}"
+    
+    # Abrir navegador automáticamente con el puerto correcto
+    echo -e "${YELLOW}Abriendo navegador...${NC}"
+    if [ -n "$LOCAL_IP" ]; then
+        start http://${LOCAL_IP}:$FRONTEND_PORT
+    else
+        start http://localhost:$FRONTEND_PORT
+    fi
     
     # Esperar a que se detengan los procesos
     wait
@@ -148,6 +175,9 @@ build_prod() {
     
     echo "🌐 Building frontend..."
     cd web && npm run build && cd ..
+    
+    echo "📁 Copiando frontend a daemon..."
+    cp -r web/dist daemon/web-dist
     
     echo "⚙️ Building CLI..."
     cd cli && bun run build && cd ..

@@ -44,6 +44,7 @@
           @show-profile-settings="showProfileSettingsModal"
           @language-changed="switchLanguage"
           @mode-changed="appStore.setMode"
+          @check-updates="showUpdateModal"
         />
 
         <!-- StreamDeck Grid -->
@@ -117,6 +118,18 @@
       @profile-updated="handleProfileUpdate"
       @profile-deleted="handleProfileDeleted"
     />
+    
+    <!-- Update Modal -->
+    <UpdateModal 
+      ref="updateModal"
+      :currentVersion="currentVersion"
+      :latestVersion="latestVersion"
+      :updateInfo="updateInfo"
+      :isChecking="isCheckingUpdate"
+      :isUpdating="isUpdating"
+      @check-for-updates="checkForUpdates"
+      @start-update="startUpdate"
+    />
   </div>
 </template>
 
@@ -133,6 +146,7 @@ import Toolbar from './Toolbar.vue'
 import StreamDeckGrid from './StreamDeckGrid.vue'
 import ActionsRightSidebar from './ActionsRightSidebar.vue'
 import QRModal from './QRModal.vue'
+import UpdateModal from './UpdateModal.vue'
 import ProfileSettingsModal from './ProfileSettingsModal.vue'
 import PageNavigation from './PageNavigation.vue'
 
@@ -163,6 +177,9 @@ const qrModal = ref<InstanceType<typeof QRModal> | null>(null)
 // Profile Settings Modal ref
 const profileSettingsModal = ref<InstanceType<typeof ProfileSettingsModal> | null>(null)
 
+// Update Modal ref
+const updateModal = ref<InstanceType<typeof UpdateModal> | null>(null)
+
 const showQRModal = () => {
   qrModal.value?.showModal()
 }
@@ -171,16 +188,105 @@ const showProfileSettingsModal = () => {
   profileSettingsModal.value?.showModal()
 }
 
-// Wake Lock API to keep screen awake
-let wakeLock: any = null
+const showUpdateModal = async () => {
+  // Check for updates first to get latest version info
+  await checkForUpdates()
+  // Always show the modal, even if no update is available
+  updateModal.value?.showModal()
+}
+
+// Update system functions
+const getCurrentVersion = async () => {
+  try {
+    const daemonUrl = `http://${window.location.hostname}:3001/api/v1/version`
+    const response = await fetch(daemonUrl)
+    if (response.ok) {
+      const data = await response.json()
+      currentVersion.value = data.version
+    }
+  } catch (error) {
+    console.error('Error getting current version:', error)
+  }
+}
+
+const checkForUpdates = async () => {
+  isCheckingUpdate.value = true
+  try {
+    const daemonUrl = `http://${window.location.hostname}:3001/api/v1/version/check`
+    const response = await fetch(daemonUrl)
+    if (response.ok) {
+      const data = await response.json()
+      latestVersion.value = data.latestVersion
+      updateInfo.value = data
+      
+      // Show modal if there's a new version
+      if (data.hasUpdate) {
+        updateModal.value?.showModal()
+      }
+    }
+  } catch (error) {
+    console.error('Error checking for updates:', error)
+  } finally {
+    isCheckingUpdate.value = false
+  }
+}
+
+const startUpdate = async () => {
+  isUpdating.value = true
+  try {
+    const daemonUrl = `http://${window.location.hostname}:3001/api/v1/update`
+    const response = await fetch(daemonUrl, {
+      method: 'POST'
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      console.log('Update started:', data)
+      // The modal will handle showing progress and completion
+    } else {
+      throw new Error('Failed to start update')
+    }
+  } catch (error) {
+    console.error('Error starting update:', error)
+    alert('Error al iniciar la actualización. Inténtalo de nuevo.')
+  } finally {
+    isUpdating.value = false
+  }
+}
+
+// Periodic update checking
+const startPeriodicUpdateCheck = () => {
+  // Check for updates every 4 hours
+  updateCheckInterval.value = setInterval(() => {
+    checkForUpdates()
+  }, 4 * 60 * 60 * 1000)
+}
+
+const stopPeriodicUpdateCheck = () => {
+  if (updateCheckInterval.value) {
+    clearInterval(updateCheckInterval.value)
+    updateCheckInterval.value = null
+  }
+}
+
+// Update system state
+const currentVersion = ref<string>('')
+const latestVersion = ref<string>('')
+const updateInfo = ref<any>(null)
+const isCheckingUpdate = ref<boolean>(false)
+const isUpdating = ref<boolean>(false)
+const updateCheckInterval = ref<NodeJS.Timeout | null>(null)
+
+// Wake Lock state
+const wakeLock = ref<WakeLockSentinel | null>(null)
 
 const requestWakeLock = async () => {
   try {
     if ('wakeLock' in navigator) {
-      wakeLock = await (navigator as any).wakeLock.request('screen')
+      wakeLock.value = await (navigator as any).wakeLock.request('screen')
       console.log('✅ Screen Wake Lock activado')
       
-      wakeLock.addEventListener('release', () => {
+      wakeLock.value.addEventListener('release', () => {
         console.log('⚠️ Screen Wake Lock liberado')
       })
     }
@@ -190,10 +296,10 @@ const requestWakeLock = async () => {
 }
 
 const releaseWakeLock = async () => {
-  if (wakeLock !== null) {
+  if (wakeLock.value !== null) {
     try {
-      await wakeLock.release()
-      wakeLock = null
+      await wakeLock.value.release()
+      wakeLock.value = null
       console.log('Screen Wake Lock liberado manualmente')
     } catch (err) {
       console.error('Error al liberar Wake Lock:', err)
@@ -349,8 +455,8 @@ const updateButtonTextColor = (value: string) => {
 
 // Lifecycle
 onMounted(async () => {
-  connectWebSocket()
   loadProfiles()
+  connectWebSocket()
   
   // Add keyboard listener for Delete key
   window.addEventListener('keydown', handleKeyDown)
@@ -360,16 +466,22 @@ onMounted(async () => {
   
   // Reactivar Wake Lock si la página vuelve a ser visible
   document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible' && wakeLock === null) {
+    if (document.visibilityState === 'visible' && wakeLock.value === null) {
       await requestWakeLock()
     }
   })
+  
+  // Initialize update system
+  await getCurrentVersion()
+  await checkForUpdates()
+  startPeriodicUpdateCheck()
 })
 
 onUnmounted(() => {
   cleanup()
   window.removeEventListener('keydown', handleKeyDown)
   releaseWakeLock()
+  stopPeriodicUpdateCheck()
 })
 
 // Handle Delete key press

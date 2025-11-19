@@ -5,17 +5,21 @@ import { ActionRunner } from './action-runner';
 import { windowWatcher } from './window-watcher';
 import { DatabaseService } from './db';
 import { setupAPIRoutes } from './api/routes';
-import SysTray from 'systray';
+const Tray = require('trayicon');
+const path = require('path');
 
 const PORT = Number(process.env.PORT) || 3001;
-const WS_PORT = Number(process.env.WS_PORT) || 3002;
+const WS_PORT = Number(process.env.WS_PORT) || 3003;
+const FRONTEND_PORT = Number(process.env.FRONTEND_PORT) || 3002;
+const DEV_MODE = process.env.DEV_MODE === 'true';
 
 class LibreDeckDaemon {
   private httpServer?: any;
+  private frontendServer?: any;
   private wsManager?: WebSocketManager;
   private pluginLoader?: PluginLoader;
   private actionRunner?: ActionRunner;
-  private tray?: SysTray;
+  private tray?: any;
 
   constructor() { }
 
@@ -62,7 +66,7 @@ class LibreDeckDaemon {
             windowWatcher.setCurrentProfile(profileId);
             this.wsManager?.broadcast('profile.navigate', { profileId }, 'profiles');
           });
-          
+
           windowWatcher.startWatching(config.rules);
         }
       }
@@ -73,44 +77,35 @@ class LibreDeckDaemon {
 
   private initializeTray() {
     try {
-      const iconPath = './icon.ico'; // Asumir icon.ico en la raíz del daemon
-      this.tray = new SysTray({
-        menu: {
-          icon: iconPath,
-          title: 'LibreDeck',
-          tooltip: 'LibreDeck Daemon',
-          items: [{
-            title: 'Abrir LibreDeck',
-            tooltip: 'Abrir interfaz web',
-            checked: false,
-            enabled: true
-          }, {
-            title: 'Salir',
-            tooltip: 'Salir de LibreDeck',
-            checked: false,
-            enabled: true
-          }]
-        },
-        debug: false,
-        copyDir: true
-      });
-
-      this.tray.onClick(action => {
-        if (action.seq_id === 0) {
-          // Abrir navegador
+      Tray.create({ title: 'LibreDeck Daemon' }, (tray) => {
+        const openItem = tray.item("Abrir LibreDeck", () => {
           const { exec } = require('child_process');
-          exec(`start http://localhost:${PORT}`);
-        } else if (action.seq_id === 1) {
-          // Salir
+          const os = require('os');
+
+          // Obtener IP local
+          const interfaces = os.networkInterfaces() as any;
+          let localIP = 'localhost';
+          for (const iface of Object.values(interfaces)) {
+            for (const addr of iface as any[]) {
+              if (addr.family === 'IPv4' && !addr.internal) {
+                localIP = addr.address;
+                break;
+              }
+            }
+            if (localIP !== 'localhost') break;
+          }
+
+          const frontendPort = process.env.PORT_FRONTEND || PORT;
+          exec(`start http://${localIP}:${frontendPort}`);
+        });
+        const quitItem = tray.item("Salir", () => {
+          tray.kill();
           process.exit(0);
-        }
+        });
+        tray.setMenu(openItem, tray.separator(), quitItem);
+        this.tray = tray;
+        console.log('✓ Tray icon initialized');
       });
-
-      this.tray.onExit(() => {
-        process.exit(0);
-      });
-
-      console.log('✓ Tray icon initialized');
     } catch (error) {
       console.error('Failed to initialize tray:', error);
     }
@@ -119,7 +114,7 @@ class LibreDeckDaemon {
   public async start() {
     await this.initializeServices();
 
-    // Crear servidor HTTP con Bun
+    // Crear servidor API
     this.httpServer = Bun.serve({
       port: PORT,
       fetch: async (req: Request) => {
@@ -151,39 +146,12 @@ class LibreDeckDaemon {
           });
         }
 
-        // Servir web-dist (UI embebida)
-        if (!url.pathname.startsWith('/api/') && !url.pathname.startsWith('/assets/') && url.pathname !== '/health') {
-          try {
-            let filePath = url.pathname === '/' ? '/index.html' : url.pathname;
-            const file = Bun.file(`./web-dist${filePath}`);
-            if (await file.exists()) {
-              return new Response(file, {
-                headers: {
-                  ...corsHeaders,
-                  'Content-Type': this.getContentType(filePath)
-                }
-              });
-            }
-          } catch (error) {
-            console.error('Error serving web file:', error);
-          }
-          // Fallback a index.html para SPA
-          const indexFile = Bun.file('./web-dist/index.html');
-          if (await indexFile.exists()) {
-            return new Response(indexFile, {
-              headers: {
-                ...corsHeaders,
-                'Content-Type': 'text/html'
-              }
-            });
-          }
-        }
-
         // Servir assets estáticos
         if (url.pathname.startsWith('/assets/')) {
           try {
             const assetPath = url.pathname.replace('/assets/', '');
-            const file = Bun.file(`../data/assets/${assetPath}`);
+            const fullPath = path.join(__dirname, '..', 'data', 'assets', assetPath);
+            const file = Bun.file(fullPath);
 
             if (await file.exists()) {
               return new Response(file, {
@@ -239,20 +207,157 @@ class LibreDeckDaemon {
           });
         }
 
-        return new Response('LibreDeck Daemon API', {
+        return new Response('LibreDeck API Server', {
           headers: corsHeaders
         });
       },
       error: (error) => {
-        console.error('Server error:', error);
+        console.error('API Server error:', error);
         return new Response('Internal Server Error', { status: 500 });
       }
     });
 
-    console.log(`🚀 LibreDeck daemon started`);
-    console.log(`📡 HTTP API: http://localhost:${PORT}`);
+    // Crear servidor frontend solo en producción
+    if (!DEV_MODE) {
+      this.frontendServer = Bun.serve({
+      port: FRONTEND_PORT,
+      fetch: async (req: Request) => {
+        const url = new URL(req.url);
+
+        // Obtener origin del request
+        const origin = req.headers.get('origin') || '*';
+
+        // Configurar CORS - permitir localhost y cualquier IP local
+        const isLocalOrigin = origin === 'null' ||
+          origin.includes('localhost') ||
+          origin.includes('127.0.0.1') ||
+          origin.match(/https?:\/\/192\.168\.\d+\.\d+(:\d+)?/) ||
+          origin.match(/https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?/) ||
+          origin.match(/https?:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+(:\d+)?/);
+
+        const corsHeaders = {
+          'Access-Control-Allow-Origin': '*', // Allow all origins for development
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+          'Access-Control-Allow-Credentials': 'true'
+        };
+
+        // Manejar preflight OPTIONS
+        if (req.method === 'OPTIONS') {
+          return new Response(null, {
+            status: 204,
+            headers: corsHeaders
+          });
+        }
+
+        // Servir config
+        if (url.pathname === '/config') {
+          const config: any = {
+            wsPort: WS_PORT,
+            apiPort: PORT
+          };
+          
+          if (DEV_MODE) {
+            config.devMode = true;
+            // En modo dev, intentar detectar el puerto del frontend
+            for (let port = 3000; port <= 5000; port++) {
+              try {
+                const response = await fetch(`http://localhost:${port}`, { 
+                  method: 'HEAD',
+                  signal: AbortSignal.timeout(100)
+                });
+                if (response.ok) {
+                  config.frontendPort = port;
+                  break;
+                }
+              } catch (e) {
+                // Continue checking
+              }
+            }
+          } else {
+            config.frontendPort = FRONTEND_PORT;
+          }
+          
+          return new Response(JSON.stringify(config), {
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json'
+            }
+          });
+        }
+
+        // Servir web-dist (UI embebida)
+        try {
+          let filePath = url.pathname === '/' ? '/index.html' : url.pathname;
+          const fullPath = path.join(__dirname, '..', 'web-dist', filePath.slice(1));
+          const file = Bun.file(fullPath);
+          if (await file.exists()) {
+            return new Response(file, {
+              headers: {
+                ...corsHeaders,
+                'Content-Type': this.getContentType(filePath)
+              }
+            });
+          }
+        } catch (error) {
+          console.error('Error serving web file:', error);
+        }
+        // Fallback a index.html para SPA
+        const indexPath = path.join(__dirname, '..', 'web-dist', 'index.html');
+        const indexFile = Bun.file(indexPath);
+        if (await indexFile.exists()) {
+          return new Response(indexFile, {
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'text/html'
+            }
+          });
+        }
+
+        return new Response(`LibreDeck Frontend Server<br>__dirname: ${__dirname}<br>index.html path: ${path.join(__dirname, '..', 'web-dist', 'index.html')}<br>exists: ${await Bun.file(path.join(__dirname, '..', 'web-dist', 'index.html')).exists()}`, {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'text/html'
+          }
+        });
+      },
+      error: (error) => {
+        console.error('Frontend Server error:', error);
+        return new Response('Internal Server Error', { status: 500 });
+      }
+    });
+    }
+
+    console.log(`🚀 LibreDeck daemon started${DEV_MODE ? ' (DEV MODE)' : ''}`);
+    console.log(`📡 API Server: http://localhost:${PORT}`);
+    if (!DEV_MODE) {
+      console.log(`🌐 Frontend Server: http://localhost:${FRONTEND_PORT}`);
+    }
     console.log(`🔌 WebSocket: ws://localhost:${WS_PORT}`);
     console.log(`🩺 Health: http://localhost:${PORT}/health`);
+
+    // Abrir navegador automáticamente solo en producción
+    if (!DEV_MODE) {
+    const { spawn } = require('child_process');
+    const os = require('os');
+    const interfaces = os.networkInterfaces() as any;
+    let localIP = 'localhost';
+    for (const iface of Object.values(interfaces)) {
+      for (const addr of iface as any[]) {
+        if (addr.family === 'IPv4' && !addr.internal) {
+          localIP = addr.address;
+          break;
+        }
+      }
+      if (localIP !== 'localhost') break;
+    }
+    const frontendPort = process.env.PORT_FRONTEND || FRONTEND_PORT;
+    try {
+      spawn('cmd', ['/c', 'start', '', `http://${localIP}:${frontendPort}`], { detached: true, stdio: 'ignore' });
+    } catch (error) {
+      console.error('Failed to open browser:', error);
+    }
+    }
   }
 
   private getContentType(filePath: string): string {
@@ -272,6 +377,9 @@ class LibreDeckDaemon {
   public async stop() {
     if (this.httpServer) {
       this.httpServer.stop();
+    }
+    if (this.frontendServer) {
+      this.frontendServer.stop();
     }
     if (this.wsManager) {
       this.wsManager.close();

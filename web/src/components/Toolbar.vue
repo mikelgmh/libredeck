@@ -68,6 +68,14 @@
         </button>
         
         <button 
+          @click="$emit('check-updates')"
+          class="btn btn-ghost btn-sm btn-square"
+          :title="t('toolbar.checkUpdates')"
+        >
+          <Download :size="20" />
+        </button>
+        
+        <button 
           v-if="!isIPhone"
           @click="toggleFullscreen"
           class="btn btn-ghost btn-sm btn-square"
@@ -83,7 +91,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { QrCode, Maximize2, Minimize2, Settings, Edit, Grid3x3 } from 'lucide-vue-next'
+import { QrCode, Maximize2, Minimize2, Settings, Edit, Grid3x3, Download } from 'lucide-vue-next'
 import { useI18nStore } from '../composables/useI18n'
 import type { ProfileData } from '../types/streamdeck'
 
@@ -105,6 +113,7 @@ interface Emits {
   (e: 'show-profile-settings'): void
   (e: 'language-changed', locale: string): void
   (e: 'mode-changed', mode: 'edit' | 'deck'): void
+  (e: 'check-updates'): void
 }
 
 const props = defineProps<Props>()

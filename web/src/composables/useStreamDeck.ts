@@ -49,27 +49,52 @@ export function useStreamDeck() {
   // Flag to prevent infinite loops when receiving profile change broadcasts
   const isRemoteProfileChange = ref(false)
 
-  // Get dynamic base URLs based on current host
-  const getApiBase = () => {
-    if (typeof window !== 'undefined') {
-      const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:'
-      const hostname = window.location.hostname
-      return `${protocol}//${hostname}:3001/api/v1`
-    }
-    return 'http://localhost:3001/api/v1'
-  }
+// Get dynamic base URLs based on current host
+const config = ref({ wsPort: 3003, apiPort: 3001, frontendPort: 4321 });
 
-  const getWsUrl = () => {
-    if (typeof window !== 'undefined') {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const hostname = window.location.hostname
-      return `${protocol}//${hostname}:3002`
-    }
-    return 'ws://localhost:3002'
+const loadConfig = async () => {
+  try {
+    // En modo dev, hacer fetch al daemon directamente
+    const configUrl = typeof window !== 'undefined' && window.location.port !== '3001' 
+      ? 'http://localhost:3001/config' 
+      : '/config';
+    const res = await fetch(configUrl);
+    const data = await res.json();
+    config.value = data;
+    console.log('🔧 Loaded config:', config.value);
+  } catch (e) {
+    console.error('Failed to load config', e);
   }
+};
 
-  const API_BASE = getApiBase()
-  const WS_URL = getWsUrl()
+const getApiBase = () => {
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol
+    const hostname = window.location.hostname
+    return `${protocol}//${hostname}:${config.value.apiPort}/api/v1`
+  }
+  return 'http://localhost:3001/api/v1'
+}
+
+const getWsUrl = () => {
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const hostname = window.location.hostname
+    return `${protocol}//${hostname}:${config.value.wsPort}`
+  }
+  return 'ws://localhost:3003'
+}
+
+const getFrontendUrl = () => {
+  if (typeof window !== 'undefined') {
+    return window.location.origin
+  }
+  return 'http://localhost:4321'
+};
+
+const API_BASE = computed(() => getApiBase())
+const WS_URL = computed(() => getWsUrl())
+const FRONTEND_URL = computed(() => getFrontendUrl())
 
   // Storage keys
   const STORAGE_KEYS = {
@@ -155,7 +180,7 @@ export function useStreamDeck() {
   }
 
   const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+    const response = await fetch(`${API_BASE.value}${endpoint}`, {
       headers: { 'Content-Type': 'application/json', ...options.headers },
       ...options
     })
@@ -170,7 +195,7 @@ export function useStreamDeck() {
   // WebSocket functions
   const connectWebSocket = () => {
     try {
-      ws = new WebSocket(WS_URL)
+      ws = new WebSocket(WS_URL.value)
 
       ws.onopen = () => {
         connectionStatus.value = 'bg-success'
@@ -298,6 +323,9 @@ export function useStreamDeck() {
 
   // Data loading functions
   const loadProfiles = async () => {
+    // Load config first
+    await loadConfig();
+
     try {
       profiles.value = await apiRequest('/profiles')
 
@@ -1598,6 +1626,11 @@ export function useStreamDeck() {
   startDynamicUpdates,
   stopDynamicUpdates,
   stopDynamicUpdateForButton,
+  
+  // URLs
+  API_BASE,
+  WS_URL,
+  FRONTEND_URL,
   
   // Internal state for watchers
   isChangingButton,

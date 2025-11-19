@@ -5,6 +5,8 @@ import { windowWatcher } from '../window-watcher';
 import { DatabaseService } from '../db';
 import { v4 as uuidv4 } from 'uuid';
 import { getSystemMetricsScript } from '../scripts/system-metrics.ps1';
+import { join } from 'path';
+import { readdir } from 'fs/promises';
 
 interface APIServices {
   wsManager: WebSocketManager;
@@ -721,63 +723,91 @@ export async function setupAPIRoutes(
       }
     }
 
-    // Files endpoints
-    if (path === '/api/v1/files/select') {
+    // Version endpoints
+    if (path === '/api/v1/version') {
       if (method === 'GET') {
         try {
-          // Abrir diálogo de selección de archivos usando PowerShell
-          const powershellScript = `
-            try {
-              Add-Type -AssemblyName System.Windows.Forms
-              $fileDialog = New-Object System.Windows.Forms.OpenFileDialog
-              $fileDialog.Title = "Seleccionar archivo o aplicación"
-              $fileDialog.Filter = "Todos los archivos (*.*)|*.*|Aplicaciones (*.exe)|*.exe"
-              $fileDialog.FilterIndex = 1
-              $fileDialog.RestoreDirectory = $true
-              
-              $result = $fileDialog.ShowDialog()
-              if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
-                $selectedFile = $fileDialog.FileName
-                $fileName = [System.IO.Path]::GetFileName($selectedFile)
-                
-                @{
-                  success = $true
-                  path = $selectedFile
-                  filename = $fileName
-                } | ConvertTo-Json -Compress
-              } else {
-                @{ success = $false; cancelled = $true } | ConvertTo-Json -Compress
-              }
-            } catch {
-              @{ error = $_.Exception.Message } | ConvertTo-Json -Compress
-            }
-          `.trim()
+          // Read version from package.json
+          const packageJsonPath = join(__dirname, '..', '..', 'package.json');
+          const packageJson = await Bun.file(packageJsonPath).json();
+          const currentVersion = packageJson.version || '0.1.0';
 
-          const proc = Bun.spawn({
-            cmd: ['powershell.exe', '-Command', powershellScript],
-            stdio: ['ignore', 'pipe', 'pipe']
-          })
-
-          const output = await new Response(proc.stdout).text()
-          const error = await new Response(proc.stderr).text()
-
-          await proc.exited
-
-          if (proc.exitCode === 0 && output.trim()) {
-            try {
-              const result = JSON.parse(output.trim())
-              return jsonResponse(result)
-            } catch (parseError) {
-              console.error('Failed to parse file selection result:', parseError)
-              return jsonResponse({ error: 'Failed to parse file selection result' }, 500)
-            }
-          } else {
-            console.error('PowerShell file selection failed:', error)
-            return jsonResponse({ error: 'File selection failed' }, 500)
-          }
+          return jsonResponse({
+            version: currentVersion,
+            buildDate: new Date().toISOString()
+          });
         } catch (error) {
-          console.error('File selection error:', error)
-          return jsonResponse({ error: 'Internal server error during file selection' }, 500)
+          console.error('Failed to read version:', error);
+          return jsonResponse({ error: 'Failed to read version' }, 500);
+        }
+      }
+    }
+
+    if (path === '/api/v1/version/check') {
+      if (method === 'GET') {
+        try {
+          // Get current version
+          const packageJsonPath = join(__dirname, '..', '..', 'package.json');
+          const packageJson = await Bun.file(packageJsonPath).json();
+          const currentVersion = packageJson.version || '0.1.0';
+
+          // Check GitHub for latest release
+          const response = await fetch('https://api.github.com/repos/mikelgmh/libredeck/releases/latest', {
+            headers: {
+              'User-Agent': 'LibreDeck-Updater'
+            }
+          });
+
+          if (!response.ok) {
+            return jsonResponse({ error: 'Failed to check for updates' }, 500);
+          }
+
+          const latestRelease = await response.json();
+          const latestVersion = latestRelease.tag_name.replace('v', '');
+
+          // Compare versions (simple string comparison for now)
+          const hasUpdate = latestVersion !== currentVersion;
+
+          return jsonResponse({
+            currentVersion,
+            latestVersion,
+            hasUpdate,
+            releaseUrl: latestRelease.html_url,
+            releaseNotes: latestRelease.body,
+            publishedAt: latestRelease.published_at
+          });
+        } catch (error) {
+          console.error('Failed to check for updates:', error);
+          return jsonResponse({ error: 'Failed to check for updates' }, 500);
+        }
+      }
+    }
+
+    if (path === '/api/v1/update') {
+      if (method === 'POST') {
+        try {
+          // For now, just simulate an update process
+          console.log('Starting update simulation...');
+
+          // Simulate some processing time
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
+          console.log('Update simulation completed!');
+
+          return jsonResponse({
+            success: true,
+            message: 'Update simulation completed successfully',
+            version: '0.2.0',
+            requiresRestart: true,
+            note: 'This is a simulation. Real update functionality will download and install the latest version from GitHub releases.'
+          });
+
+        } catch (error) {
+          console.error('Failed to update:', error);
+          return jsonResponse({ 
+            error: 'Failed to update application', 
+            details: error instanceof Error ? error.message : 'Unknown error' 
+          }, 500);
         }
       }
     }
