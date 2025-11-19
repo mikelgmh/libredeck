@@ -103,8 +103,8 @@ jobs:
 
     - name: Copy Web dist to Daemon
       run: |
-        if [ ! -d "daemon/web-dist" ]; then mkdir daemon/web-dist; fi
-        if [ -d "web/dist" ]; then cp -r web/dist/* daemon/web-dist/ || true; fi
+        powershell -Command "if (!(Test-Path daemon/web-dist)) { mkdir daemon/web-dist }" 2>/dev/null || mkdir -p daemon/web-dist 2>/dev/null || true
+        powershell -Command "if (Test-Path web/dist) { Copy-Item -Path web/dist/* -Destination daemon/web-dist/ -Recurse -Force }" 2>/dev/null || cp -r web/dist/* daemon/web-dist/ 2>/dev/null || true
 
     - name: Build Unified Daemon
       run: |
