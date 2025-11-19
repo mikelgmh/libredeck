@@ -2,14 +2,14 @@
   <div class="flex-1 p-8 flex flex-col items-center justify-center gap-4">
     <!-- Grid Size Controls -->
     <div class="flex items-center gap-3">
-      <span class="text-sm font-medium text-base-content/70">Tamaño de cuadrícula:</span>
+      <span class="text-sm font-medium text-base-content/70">{{ t('streamDeckGrid.gridSize') }}</span>
       
       <div class="flex items-center gap-2">
         <button 
           @click="$emit('grid-size-change', -1, 0)" 
           class="btn btn-ghost btn-xs btn-square"
           :disabled="gridCols <= 3"
-          title="Reducir columnas"
+          :title="t('streamDeckGrid.reduceColumns')"
         >
           <Minus :size="14" />
         </button>
@@ -18,7 +18,7 @@
           @click="$emit('grid-size-change', 1, 0)" 
           class="btn btn-ghost btn-xs btn-square"
           :disabled="gridCols >= 8"
-          title="Aumentar columnas"
+          :title="t('streamDeckGrid.increaseColumns')"
         >
           <Plus :size="14" />
         </button>
@@ -31,7 +31,7 @@
           @click="$emit('grid-size-change', 0, -1)" 
           class="btn btn-ghost btn-xs btn-square"
           :disabled="gridRows <= 2"
-          title="Reducir filas"
+          :title="t('streamDeckGrid.reduceRows')"
         >
           <Minus :size="14" />
         </button>
@@ -39,7 +39,7 @@
           @click="$emit('grid-size-change', 0, 1)" 
           class="btn btn-ghost btn-xs btn-square"
           :disabled="gridRows >= 6"
-          title="Aumentar filas"
+          :title="t('streamDeckGrid.increaseRows')"
         >
           <Plus :size="14" />
         </button>
@@ -197,7 +197,10 @@ import { createSwapy, type Swapy } from 'swapy'
 import { Plus, Play, Trash2, Minus } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import ContextMenu from './ContextMenu.vue'
+import { useI18nStore } from '../composables/useI18n'
 import type { ButtonData, ButtonEntity } from '../types/streamdeck'
+
+const { t } = useI18nStore()
 
 interface Props {
   gridCols: number
@@ -242,13 +245,13 @@ const contextMenuItems = computed(() => {
     return [
       {
         id: 'execute',
-        label: 'Pulsar',
+        label: t('streamDeckGrid.press'),
         icon: Play,
         danger: false
       },
       {
         id: 'delete',
-        label: 'Eliminar',
+        label: t('streamDeckGrid.delete'),
         icon: Trash2,
         danger: true
       }
@@ -258,7 +261,7 @@ const contextMenuItems = computed(() => {
     return [
       {
         id: 'create',
-        label: 'Crear botón',
+        label: t('streamDeckGrid.createButton'),
         icon: Plus,
         danger: false
       }

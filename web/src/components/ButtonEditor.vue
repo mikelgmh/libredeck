@@ -11,7 +11,7 @@
       <!-- Text Top -->
       <label class="form-control w-full">
         <div class="label">
-          <span class="label-text">Texto Superior</span>
+          <span class="label-text">{{ t('buttonEditor.textTop') }}</span>
         </div>
         <input 
           :value="buttonConfig.textTop || ''" 
@@ -25,7 +25,7 @@
       <!-- Text Bottom -->
       <label class="form-control w-full">
         <div class="label">
-          <span class="label-text">Texto Inferior</span>
+          <span class="label-text">{{ t('buttonEditor.textBottom') }}</span>
         </div>
         <input 
           :value="buttonConfig.textBottom || ''" 
@@ -39,7 +39,7 @@
       <!-- Font Size -->
       <label class="form-control w-full">
         <div class="label">
-          <span class="label-text">Tamaño de Texto (px)</span>
+          <span class="label-text">{{ t('buttonEditor.fontSize') }}</span>
         </div>
         <input 
           :value="buttonConfig.fontSize || 14" 
@@ -56,7 +56,7 @@
       <div class="grid grid-cols-2 gap-2">
         <label class="form-control">
           <div class="label">
-            <span class="label-text">Color de Fondo</span>
+            <span class="label-text">{{ t('buttonEditor.backgroundColor') }}</span>
           </div>
           <input 
             :value="buttonConfig.backgroundColor" 
@@ -68,7 +68,7 @@
 
         <label class="form-control">
           <div class="label">
-            <span class="label-text">Color de Texto</span>
+            <span class="label-text">{{ t('buttonEditor.textColor') }}</span>
           </div>
           <input 
             :value="buttonConfig.textColor" 
@@ -81,7 +81,7 @@
     </div>
 
     <!-- Actions Section -->
-    <div class="divider text-sm">Acciones</div>
+    <div class="divider text-sm">{{ t('buttonEditor.actions') }}</div>
     
     <div 
       ref="actionsContainer"
@@ -117,12 +117,12 @@
 
       <!-- Drop zone hint -->
       <div v-if="!isDraggingAction" class="border-2 border-dashed border-base-content/30 rounded-lg p-4 text-center text-sm text-base-content/50 mt-4">
-        Arrastra acciones aquí desde la barra lateral derecha
+        {{ t('buttonEditor.dragActionsHere') }}
       </div>
       
       <div v-if="isDraggingAction" class="text-center py-12 text-sm font-medium" :class="isDragOver ? 'text-primary' : 'text-base-content/60'">
         <div class="text-2xl mb-2">↓</div>
-        Suelta aquí para añadir la acción
+        {{ t('buttonEditor.dropActionHere') }}
       </div>
     </div>
   </div>
@@ -130,10 +130,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { useI18nStore } from '../composables/useI18n'
 import ActionEditor from './ActionEditor.vue'
 import IconPicker from './IconPicker.vue'
 import type { ButtonData } from '../types/streamdeck'
 import { createSwapy } from 'swapy'
+
+const { t } = useI18nStore()
 
 const isDragOver = ref(false)
 const isDraggingAction = ref(false)

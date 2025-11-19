@@ -1,0 +1,55 @@
+{
+    "toolbar": {
+        "selectProfile": "Select profile...",
+        "profileSettings": "Profile settings",
+        "showQR": "Show QR code",
+        "fullscreen": "Fullscreen",
+        "exitFullscreen": "Exit fullscreen",
+        "language": "Language"
+    },
+    "sidebar": {
+        "button": "Button",
+        "selectButton": "Select a button"
+    },
+    "pageNavigation": {
+        "addPage": "Add page",
+        "pageCounter": "Page {current} of {total}",
+        "renamePage": "Rename Page",
+        "newName": "New name",
+        "pageNamePlaceholder": "Page name",
+        "addNewPage": "Add New Page",
+        "pageName": "Page name",
+        "pageNameExamples": "Ex: Games, Music, Work...",
+        "isFolder": "Is a folder",
+        "folderDescription": "Folders don't appear in navigation and serve to organize actions",
+        "cancel": "Cancel",
+        "rename": "Rename",
+        "delete": "Delete",
+        "createPage": "Create Page"
+    },
+    "actionsSidebar": {
+        "actionsLibrary": "Actions Library",
+        "searchActions": "Search actions...",
+        "availableActions": "{count} actions available"
+    },
+    "buttonEditor": {
+        "textTop": "Top Text",
+        "textBottom": "Bottom Text",
+        "fontSize": "Font Size (px)",
+        "backgroundColor": "Background Color",
+        "textColor": "Text Color",
+        "actions": "Actions",
+        "dragActionsHere": "Drag actions here from the right sidebar",
+        "dropActionHere": "Drop here to add the action"
+    },
+    "streamDeckGrid": {
+        "gridSize": "Grid size:",
+        "reduceColumns": "Reduce columns",
+        "increaseColumns": "Increase columns",
+        "reduceRows": "Reduce rows",
+        "increaseRows": "Increase rows",
+        "press": "Press",
+        "delete": "Delete",
+        "createButton": "Create button"
+    }
+}

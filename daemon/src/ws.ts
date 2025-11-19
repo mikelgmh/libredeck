@@ -246,6 +246,14 @@ export class WebSocketManager {
     this.broadcast('page.deleted', { pageId }, 'pages');
   }
 
+  public broadcastButtonUpdate(buttonId: string, button: any): void {
+    this.broadcast('button.updated', { buttonId, button }, 'buttons');
+  }
+
+  public broadcastButtonDeleted(buttonId: string): void {
+    this.broadcast('button.deleted', { buttonId }, 'buttons');
+  }
+
   public broadcastActionStarted(actionId: string, context: any): void {
     this.broadcast('action.started', { actionId, context, timestamp: Date.now() });
   }

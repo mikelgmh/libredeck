@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { createI18n } from 'vue-i18n'
-import messages from '../i18n/messages'
+import en from '../i18n/locales/en.json'
+import es from '../i18n/locales/es.json'
 
 // Create a singleton i18n instance
 let i18nInstance: ReturnType<typeof createI18n> | null = null
@@ -11,7 +12,10 @@ function getI18nInstance() {
       legacy: false,
       locale: 'es',
       fallbackLocale: 'en',
-      messages
+      messages: {
+        en,
+        es
+      }
     })
   }
   return i18nInstance
