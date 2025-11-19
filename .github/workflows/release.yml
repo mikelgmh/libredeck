@@ -1,0 +1,115 @@
+name: Release
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+            ext: ""
+          - os: windows-latest
+            target: windows-x64
+            ext: .exe
+          - os: macos-latest
+            target: darwin-x64
+            ext: ""
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies (CLI)
+      run: |
+        cd cli
+        bun install
+
+    - name: Install dependencies (Daemon)
+      run: |
+        cd daemon
+        bun install
+
+    - name: Install dependencies (Web)
+      run: |
+        cd web
+        bun install
+
+    - name: Build CLI
+      run: |
+        cd cli
+        bun run build
+        mv sdctl sdctl-${{ matrix.target }}${{ matrix.ext }}
+
+    - name: Build Daemon
+      run: |
+        cd daemon
+        bun run build
+        mv libredeck-daemon libredeck-daemon-${{ matrix.target }}${{ matrix.ext }}
+
+    - name: Build Web
+      run: |
+        cd web
+        bun run build
+        bun run bundle
+        mv libredeck-web libredeck-web-${{ matrix.target }}${{ matrix.ext }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: libredeck-${{ matrix.os }}
+        path: |
+          cli/sdctl-${{ matrix.target }}${{ matrix.ext }}
+          daemon/libredeck-daemon-${{ matrix.target }}${{ matrix.ext }}
+          web/libredeck-web-${{ matrix.target }}${{ matrix.ext }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Move artifacts to root
+      run: |
+        find artifacts -name "sdctl-*" -exec mv {} . \;
+        find artifacts -name "libredeck-daemon-*" -exec mv {} . \;
+        find artifacts -name "libredeck-web-*" -exec mv {} . \;
+
+    - name: Release
+      run: npx semantic-release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

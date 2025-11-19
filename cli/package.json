@@ -4,11 +4,11 @@
   "description": "LibreDeck CLI - Command line tools for LibreDeck management",
   "type": "module",
   "bin": {
-    "sdctl": "./dist/cli.js"
+    "sdctl": "src/cli.ts"
   },
   "scripts": {
     "dev": "bun run --watch src/cli.ts",
-    "build": "bun build src/cli.ts --outdir ./dist --target bun",
+    "build": "bun build --compile src/cli.ts --outfile sdctl",
     "start": "bun run src/cli.ts"
   },
   "dependencies": {

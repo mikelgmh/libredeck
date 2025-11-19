@@ -324,6 +324,65 @@ program
     }
   });
 
+// Update
+program
+  .command('update')
+  .description('Check for updates and update LibreDeck')
+  .action(async () => {
+    const spinner = ora('Checking for updates...').start();
+    
+    try {
+      const currentVersion = require('../../package.json').version;
+      const response = await fetch('https://api.github.com/repos/mikelgmh/libredeck/releases/latest');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch latest release');
+      }
+      
+      const release = await response.json();
+      const latestVersion = release.tag_name.replace('v', '');
+      
+      if (latestVersion > currentVersion) {
+        spinner.text = `Updating to v${latestVersion}...`;
+        
+        // Find assets for current platform
+        const platform = process.platform;
+        const arch = process.arch;
+        const assetName = platform === 'win32' ? `sdctl-windows-${arch}.exe` :
+                         platform === 'darwin' ? `sdctl-darwin-${arch}` :
+                         `sdctl-linux-${arch}`;
+        
+        const asset = release.assets.find((a: any) => a.name === assetName);
+        
+        if (!asset) {
+          throw new Error(`No asset found for ${platform}-${arch}`);
+        }
+        
+        // Download and replace
+        const downloadResponse = await fetch(asset.browser_download_url);
+        const buffer = await downloadResponse.arrayBuffer();
+        
+        // Backup current executable
+        const fs = await import('fs');
+        const path = await import('path');
+        const currentPath = process.argv[0];
+        const backupPath = currentPath + '.backup';
+        
+        fs.copyFileSync(currentPath, backupPath);
+        
+        // Write new executable
+        fs.writeFileSync(currentPath, Buffer.from(buffer));
+        
+        spinner.succeed(`Updated to v${latestVersion}! Restart required.`);
+        console.log(chalk.yellow('Backup saved as sdctl.backup'));
+      } else {
+        spinner.succeed('LibreDeck is up to date');
+      }
+    } catch (error) {
+      spinner.fail(`Update failed: ${error}`);
+    }
+  });
+
 // Development tools
 const devCommand = program.command('dev');
 

@@ -27,10 +27,15 @@
     "lint": "bun run lint:daemon && bun run lint:web",
     "lint:daemon": "cd daemon && bun run lint",
     "lint:web": "cd web && npm run lint",
-    "clean": "rm -rf daemon/dist web/dist cli/dist data/db.sqlite*"
+    "clean": "rm -rf daemon/dist web/dist cli/dist data/db.sqlite*",
+    "release": "semantic-release"
   },
   "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^12.0.2",
     "concurrently": "^8.2.2",
+    "semantic-release": "^25.0.2",
     "start-server-and-test": "^2.0.3"
   },
   "keywords": [
