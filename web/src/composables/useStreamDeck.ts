@@ -1056,9 +1056,11 @@ export function useStreamDeck() {
 
       currentPages.value.push(newPage)
 
-      // If it's not a folder, switch to it
+      // If it's not a folder, switch to it after a small delay to allow broadcasts to propagate
       if (!isFolder) {
-        await selectPage(newPage.id)
+        setTimeout(() => {
+          selectPage(newPage.id)
+        }, 100)
       }
 
       return newPage
