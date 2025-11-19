@@ -96,18 +96,21 @@ jobs:
         bun run build
         mv sdctl* sdctl-${{ matrix.target }}${{ matrix.ext }}
 
-    - name: Build Daemon
-      run: |
-        cd daemon
-        bun run build
-        mv libredeck-daemon* libredeck-daemon-${{ matrix.target }}${{ matrix.ext }}
-
     - name: Build Web
       run: |
         cd web
         bun run build
-        bun run bundle
-        mv libredeck-web* libredeck-web-${{ matrix.target }}${{ matrix.ext }}
+
+    - name: Copy Web dist to Daemon
+      run: |
+        mkdir -p daemon/web-dist
+        cp -r web/dist/* daemon/web-dist/
+
+    - name: Build Unified Daemon
+      run: |
+        cd daemon
+        bun run build
+        mv libredeck-daemon* libredeck-daemon-${{ matrix.target }}${{ matrix.ext }}
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -116,7 +119,6 @@ jobs:
         path: |
           cli/sdctl-${{ matrix.target }}${{ matrix.ext }}
           daemon/libredeck-daemon-${{ matrix.target }}${{ matrix.ext }}
-          web/libredeck-web-${{ matrix.target }}${{ matrix.ext }}
 
   release:
     needs: build
@@ -153,7 +155,6 @@ jobs:
       run: |
         find artifacts -name "sdctl-*" -exec mv {} . \;
         find artifacts -name "libredeck-daemon-*" -exec mv {} . \;
-        find artifacts -name "libredeck-web-*" -exec mv {} . \;
 
     - name: Release
       run: bunx semantic-release

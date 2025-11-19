@@ -17,25 +17,27 @@ bun run build
 mv sdctl ../dist/
 cd ..
 
-# Build Daemon
-echo "📦 Building Daemon..."
+# Build Web first
+echo "📦 Building Web..."
+cd web
+bun run build
+cd ..
+
+# Copy web dist to daemon
+echo "📦 Copying Web dist to Daemon..."
+mkdir -p daemon/web-dist
+cp -r web/dist/* daemon/web-dist/
+
+# Build Daemon (now unified with Web)
+echo "📦 Building Unified Daemon..."
 cd daemon
 bun run build
 mv libredeck-daemon ../dist/
 cd ..
 
-# Build Web
-echo "📦 Building Web..."
-cd web
-bun run build
-bun run bundle
-mv libredeck-web ../dist/
-cd ..
-
 echo "✅ Build complete! Executables in ./dist/"
 echo "  - CLI: ./dist/sdctl"
-echo "  - Daemon: ./dist/libredeck-daemon"
-echo "  - Web: ./dist/libredeck-web"
+echo "  - Unified Daemon (with Web): ./dist/libredeck-daemon"
 echo ""
 echo "To run in production:"
 echo "  ./dist/sdctl start"

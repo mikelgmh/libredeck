@@ -5,6 +5,7 @@ import { ActionRunner } from './action-runner';
 import { windowWatcher } from './window-watcher';
 import { DatabaseService } from './db';
 import { setupAPIRoutes } from './api/routes';
+import SysTray from 'systray';
 
 const PORT = Number(process.env.PORT) || 3001;
 const WS_PORT = Number(process.env.WS_PORT) || 3002;
@@ -14,6 +15,7 @@ class LibreDeckDaemon {
   private wsManager?: WebSocketManager;
   private pluginLoader?: PluginLoader;
   private actionRunner?: ActionRunner;
+  private tray?: SysTray;
 
   constructor() { }
 
@@ -35,6 +37,9 @@ class LibreDeckDaemon {
 
       // Inicializar auto-profile switching si hay configuración guardada
       await this.initializeAutoProfileSwitching();
+
+      // Inicializar tray icon
+      this.initializeTray();
 
       console.log('✓ Services initialized');
     } catch (error) {
@@ -63,6 +68,51 @@ class LibreDeckDaemon {
       }
     } catch (error) {
       console.error('❌ Failed to initialize auto-profile switching:', error);
+    }
+  }
+
+  private initializeTray() {
+    try {
+      const iconPath = './icon.ico'; // Asumir icon.ico en la raíz del daemon
+      this.tray = new SysTray({
+        menu: {
+          icon: iconPath,
+          title: 'LibreDeck',
+          tooltip: 'LibreDeck Daemon',
+          items: [{
+            title: 'Abrir LibreDeck',
+            tooltip: 'Abrir interfaz web',
+            checked: false,
+            enabled: true
+          }, {
+            title: 'Salir',
+            tooltip: 'Salir de LibreDeck',
+            checked: false,
+            enabled: true
+          }]
+        },
+        debug: false,
+        copyDir: true
+      });
+
+      this.tray.onClick(action => {
+        if (action.seq_id === 0) {
+          // Abrir navegador
+          const { exec } = require('child_process');
+          exec(`start http://localhost:${PORT}`);
+        } else if (action.seq_id === 1) {
+          // Salir
+          process.exit(0);
+        }
+      });
+
+      this.tray.onExit(() => {
+        process.exit(0);
+      });
+
+      console.log('✓ Tray icon initialized');
+    } catch (error) {
+      console.error('Failed to initialize tray:', error);
     }
   }
 
@@ -99,6 +149,34 @@ class LibreDeckDaemon {
             status: 204,
             headers: corsHeaders
           });
+        }
+
+        // Servir web-dist (UI embebida)
+        if (!url.pathname.startsWith('/api/') && !url.pathname.startsWith('/assets/') && url.pathname !== '/health') {
+          try {
+            let filePath = url.pathname === '/' ? '/index.html' : url.pathname;
+            const file = Bun.file(`./web-dist${filePath}`);
+            if (await file.exists()) {
+              return new Response(file, {
+                headers: {
+                  ...corsHeaders,
+                  'Content-Type': this.getContentType(filePath)
+                }
+              });
+            }
+          } catch (error) {
+            console.error('Error serving web file:', error);
+          }
+          // Fallback a index.html para SPA
+          const indexFile = Bun.file('./web-dist/index.html');
+          if (await indexFile.exists()) {
+            return new Response(indexFile, {
+              headers: {
+                ...corsHeaders,
+                'Content-Type': 'text/html'
+              }
+            });
+          }
         }
 
         // Servir assets estáticos
@@ -177,12 +255,29 @@ class LibreDeckDaemon {
     console.log(`🩺 Health: http://localhost:${PORT}/health`);
   }
 
+  private getContentType(filePath: string): string {
+    const ext = filePath.split('.').pop()?.toLowerCase();
+    const types: { [key: string]: string } = {
+      'html': 'text/html',
+      'css': 'text/css',
+      'js': 'application/javascript',
+      'json': 'application/json',
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'ico': 'image/x-icon'
+    };
+    return types[ext || ''] || 'text/plain';
+  }
+
   public async stop() {
     if (this.httpServer) {
       this.httpServer.stop();
     }
     if (this.wsManager) {
       this.wsManager.close();
+    }
+    if (this.tray) {
+      this.tray.kill();
     }
     console.log('🛑 LibreDeck daemon stopped');
   }
