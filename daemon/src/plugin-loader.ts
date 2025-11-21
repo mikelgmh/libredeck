@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { DatabaseService } from './db';
 import chokidar from 'chokidar';
+import { getPluginsDir } from './paths';
 
 export interface PluginManifest {
   id: string;
@@ -44,7 +45,8 @@ export class PluginLoader {
 
   private setupPluginWatcher() {
     // Watch for plugin changes in development mode
-    this.watcher = chokidar.watch('../data/plugins', {
+    const pluginsDir = getPluginsDir();
+    this.watcher = chokidar.watch(pluginsDir, {
       ignored: /(^|[\/\\])\../, // ignore dotfiles
       persistent: true
     });
@@ -144,7 +146,8 @@ export class PluginLoader {
   }
 
   private async loadExternalPlugin(pluginId: string): Promise<boolean> {
-    const pluginPath = `../data/plugins/${pluginId}`;
+    const pluginsDir = getPluginsDir();
+    const pluginPath = `${pluginsDir}/${pluginId}`;
     
     try {
       // Check if plugin directory exists

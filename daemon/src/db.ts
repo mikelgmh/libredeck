@@ -56,6 +56,8 @@ export interface Setting {
   value: string;
 }
 
+import { getDataDir, getDbPath, ensureDataDirectories } from './paths';
+
 const SQL_SCHEMA = `
   CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
@@ -121,11 +123,11 @@ const SQL_SCHEMA = `
 `;
 
 export async function initDatabase() {
-  const dataDir = '../data';
-  const dbPath = `${dataDir}/db.sqlite`;
-
-  // Crear directorio data si no existe
-  await Bun.write(`${dataDir}/.gitkeep`, '');
+  // Ensure all data directories exist with proper permissions
+  await ensureDataDirectories();
+  
+  const dataDir = getDataDir();
+  const dbPath = getDbPath();
 
   db = new Database(dbPath);
 

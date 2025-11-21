@@ -37,15 +37,16 @@ cd ..
 echo "📦 Building CLI..."
 cd cli
 bun run build
-mv sdctl ../dist/
+mv libredeck-cli ../dist/
 cd ..
 
-echo "✅ Build complete! Executables in ./dist/"
-echo "  - Main App: ./dist/libredeck-daemon.exe (includes daemon + web server)"
-echo "  - CLI: ./dist/sdctl.exe"
-echo ""
-echo "To run in production:"
-echo "  ./dist/libredeck-daemon.exe"
-echo ""
-echo "To update:"
-echo "  ./dist/sdctl.exe update"
+echo "📦 Building Installer..."
+ISCC_PATH="/c/Users/Mikel/AppData/Local/Programs/Inno Setup 6/ISCC.exe"
+if [ -f "$ISCC_PATH" ]; then
+    "$ISCC_PATH" installer.iss
+    echo "✅ Installer created: installer/LibreDeck-Setup.exe"
+else
+    echo "⚠️ Inno Setup not found at $ISCC_PATH"
+    echo "   Install it from https://jrsoftware.org/isinfo.php"
+    echo "   Then run: iscc installer.iss"
+fi

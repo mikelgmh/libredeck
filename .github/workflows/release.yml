@@ -51,12 +51,15 @@ jobs:
           - os: ubuntu-latest
             target: linux-x64
             ext: ""
+            installer: false
           - os: windows-latest
             target: windows-x64
             ext: .exe
+            installer: true
           - os: macos-latest
             target: darwin-x64
             ext: ""
+            installer: false
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -74,6 +77,10 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '22'
+
+    - name: Get version
+      id: version
+      run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
     - name: Install dependencies (CLI)
       run: |
@@ -94,7 +101,7 @@ jobs:
       run: |
         cd cli
         bun run build
-        mv sdctl* sdctl-${{ matrix.target }}${{ matrix.ext }}
+        mv sdctl* libredeck-cli-v${{ steps.version.outputs.version }}-${{ matrix.target }}${{ matrix.ext }}
 
     - name: Build Web
       run: |
@@ -108,15 +115,38 @@ jobs:
       run: |
         cd daemon
         bun run build
-        mv libredeck-daemon* libredeck-daemon-${{ matrix.target }}${{ matrix.ext }}
+        mv libredeck-daemon* libredeck-daemon-v${{ steps.version.outputs.version }}-${{ matrix.target }}${{ matrix.ext }}
+
+    - name: Setup Inno Setup (Windows only)
+      if: matrix.installer == true
+      run: |
+        choco install innosetup -y
+        echo "C:\Program Files (x86)\Inno Setup 6" >> $GITHUB_PATH
+
+    - name: Copy Web dist to Dist (Windows only)
+      if: matrix.installer == true
+      run: |
+        mkdir -p dist/web-dist
+        cp -r web/dist/* dist/web-dist/
+        cp daemon/libredeck-daemon-v${{ steps.version.outputs.version }}-${{ matrix.target }}${{ matrix.ext }} dist/libredeck-daemon${{ matrix.ext }}
+        cp cli/libredeck-cli-v${{ steps.version.outputs.version }}-${{ matrix.target }}${{ matrix.ext }} dist/libredeck-cli${{ matrix.ext }}
+
+    - name: Build Windows Installer
+      if: matrix.installer == true
+      run: |
+        mkdir -p installer
+        iscc installer.iss
+        mv installer/LibreDeck-Setup.exe installer/LibreDeck-Setup-v${{ steps.version.outputs.version }}.exe
+      shell: bash
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: libredeck-${{ matrix.os }}
         path: |
-          cli/sdctl-${{ matrix.target }}${{ matrix.ext }}
-          daemon/libredeck-daemon-${{ matrix.target }}${{ matrix.ext }}
+          cli/libredeck-cli-v*-${{ matrix.target }}${{ matrix.ext }}
+          daemon/libredeck-daemon-v*-${{ matrix.target }}${{ matrix.ext }}
+          installer/LibreDeck-Setup-v*.exe
 
   release:
     needs: build
@@ -151,8 +181,9 @@ jobs:
 
     - name: Move artifacts to root
       run: |
-        find artifacts -name "sdctl-*" -exec mv {} . \;
-        find artifacts -name "libredeck-daemon-*" -exec mv {} . \;
+        find artifacts -name "libredeck-cli-v*-*" -exec mv {} . \;
+        find artifacts -name "libredeck-daemon-v*-*" -exec mv {} . \;
+        find artifacts -name "LibreDeck-Setup-v*.exe" -exec mv {} . \; || true
 
     - name: Release
       run: bunx semantic-release

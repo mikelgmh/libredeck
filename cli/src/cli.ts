@@ -62,29 +62,31 @@ const getLatestDaemonExe = async (): Promise<string | null> => {
   
   try {
     const files = fs.readdirSync(currentDir);
-    const daemonExes = files.filter(file => file.startsWith('libredeck-daemon-v') && file.endsWith('.exe'));
+    const daemonExes = files.filter(file => 
+      file.startsWith('libredeck-daemon') && 
+      file.endsWith('.exe') &&
+      !file.includes('-backup') // Excluir backup
+    );
     
-    if (daemonExes.length === 0) {
-      // Si no hay con versión, buscar libredeck-daemon.exe
-      const defaultExe = path.join(currentDir, 'libredeck-daemon.exe');
-      if (fs.existsSync(defaultExe)) {
-        return defaultExe;
-      }
-      return null;
-    }
+    if (daemonExes.length === 0) return null;
     
-    // Extraer versiones y encontrar la más alta
+    // Extraer versiones: preferir archivos con -vX.X.X-
     const versions = daemonExes.map(file => {
-      const match = file.match(/libredeck-daemon-v([0-9]+\.[0-9]+\.[0-9]+)\.exe/);
-      return match ? { file, version: match[1] } : null;
-    }).filter(Boolean);
+      const versionMatch = file.match(/libredeck-daemon-v([0-9]+\.[0-9]+\.[0-9]+)/);
+      if (versionMatch) {
+        return { file, version: versionMatch[1], hasVersion: true };
+      }
+      // Si no tiene versión, asignar versión baja
+      return { file, version: '0.0.0', hasVersion: false };
+    });
     
-    if (versions.length === 0) return null;
-    
-    // Ordenar por versión semver
+    // Ordenar: primero los con versión, luego por versión semver descendente
     versions.sort((a, b) => {
-      const aParts = a!.version.split('.').map(Number);
-      const bParts = b!.version.split('.').map(Number);
+      if (a.hasVersion && !b.hasVersion) return -1;
+      if (!a.hasVersion && b.hasVersion) return 1;
+      
+      const aParts = a.version.split('.').map(Number);
+      const bParts = b.version.split('.').map(Number);
       for (let i = 0; i < 3; i++) {
         if (aParts[i] > bParts[i]) return -1;
         if (aParts[i] < bParts[i]) return 1;
@@ -92,7 +94,7 @@ const getLatestDaemonExe = async (): Promise<string | null> => {
       return 0;
     });
     
-    return path.join(currentDir, versions[0]!.file);
+    return path.join(currentDir, versions[0].file);
   } catch (error) {
     console.error('Error finding latest daemon exe:', error);
     return null;
@@ -569,7 +571,7 @@ Este plugin añade las siguientes acciones:
 
 // Main CLI setup
 program
-  .name('sdctl')
+  .name('libredeck-cli')
   .description('LibreDeck CLI - Herramientas de línea de comandos para LibreDeck')
   .version('0.1.0');
 

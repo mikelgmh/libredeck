@@ -118,3 +118,4 @@ daemon/dist/
 daemon/web-dist/
 web/dist/
 cli/dist/
+installer/
