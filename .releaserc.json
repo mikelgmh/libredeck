@@ -22,40 +22,32 @@
       {
         "assets": [
           {
-            "path": "sdctl-linux-x64",
+            "path": "libredeck-cli-v*-linux-x64",
             "label": "CLI Linux x64"
           },
           {
-            "path": "sdctl-windows-x64.exe",
+            "path": "libredeck-cli-v*-windows-x64.exe",
             "label": "CLI Windows x64"
           },
           {
-            "path": "sdctl-darwin-x64",
+            "path": "libredeck-cli-v*-darwin-x64",
             "label": "CLI macOS x64"
           },
           {
-            "path": "libredeck-daemon-linux-x64",
+            "path": "libredeck-daemon-v*-linux-x64",
             "label": "Daemon Linux x64"
           },
           {
-            "path": "libredeck-daemon-windows-x64.exe",
+            "path": "libredeck-daemon-v*-windows-x64.exe",
             "label": "Daemon Windows x64"
           },
           {
-            "path": "libredeck-daemon-darwin-x64",
+            "path": "libredeck-daemon-v*-darwin-x64",
             "label": "Daemon macOS x64"
           },
           {
-            "path": "libredeck-web-linux-x64",
-            "label": "Web Linux x64"
-          },
-          {
-            "path": "libredeck-web-windows-x64.exe",
-            "label": "Web Windows x64"
-          },
-          {
-            "path": "libredeck-web-darwin-x64",
-            "label": "Web macOS x64"
+            "path": "LibreDeck-Setup-v*.exe",
+            "label": "Windows Installer"
           }
         ]
       }
