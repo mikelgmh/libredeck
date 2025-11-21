@@ -1,3 +1,11 @@
+# [1.3.0](https://github.com/mikelgmh/libredeck/compare/v1.2.0...v1.3.0) (2025-11-21)
+
+
+### Features
+
+* Fix pipeline ([e00479a](https://github.com/mikelgmh/libredeck/commit/e00479af2ce804cfacf28d866b10497db7d134a0))
+* Inno setup ([020fe1e](https://github.com/mikelgmh/libredeck/commit/020fe1e235c9fcba5080a0215642de2d17064c5f))
+
 # [1.2.0](https://github.com/mikelgmh/libredeck/compare/v1.1.0...v1.2.0) (2025-11-21)
 
 
