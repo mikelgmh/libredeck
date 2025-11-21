@@ -1,3 +1,10 @@
+## [1.3.2](https://github.com/mikelgmh/libredeck/compare/v1.3.1...v1.3.2) (2025-11-21)
+
+
+### Bug Fixes
+
+* Semantic release fix ([89da449](https://github.com/mikelgmh/libredeck/commit/89da44972c121afaa765c0e06e2c3bcaf4167e0c))
+
 ## [1.3.1](https://github.com/mikelgmh/libredeck/compare/v1.3.0...v1.3.1) (2025-11-21)
 
 
