@@ -1,3 +1,20 @@
+# [1.1.0](https://github.com/mikelgmh/libredeck/compare/v1.0.0...v1.1.0) (2025-11-19)
+
+
+### Bug Fixes
+
+* **ci:** create dedicated script for cross-platform file operations ([e717c00](https://github.com/mikelgmh/libredeck/commit/e717c00ed7d963be389591794c0887bebdb2bd7a))
+* **ci:** fix mkdir command compatibility in Windows GitHub Actions ([1db10c5](https://github.com/mikelgmh/libredeck/commit/1db10c5effa9eead982bd9400ca4a0011b372f14))
+* **ci:** use cross-platform commands for directory operations ([2a75cd6](https://github.com/mikelgmh/libredeck/commit/2a75cd6ef2e5fcd32503551b67409369c482fac7))
+* **daemon:** make systray module optional for cross-platform compatibility ([ed40e29](https://github.com/mikelgmh/libredeck/commit/ed40e29896e0385c33ae26613f882f076c16dc70))
+* move deprecated Dashboard.vue to avoid build errors ([67bd601](https://github.com/mikelgmh/libredeck/commit/67bd6011b4ddc0b9f30f0f6947314d4ac7f86339))
+
+
+### Features
+
+* Build and auto update ([2f2023e](https://github.com/mikelgmh/libredeck/commit/2f2023ef68e9412574053975066e752cc169995e))
+* unify daemon and web bundles with Bun, add lightweight tray icon ([8ae2d18](https://github.com/mikelgmh/libredeck/commit/8ae2d18b428e0192d1bb2271e9e06734dfb2d2ef))
+
 # 1.0.0 (2025-11-19)
 
 
