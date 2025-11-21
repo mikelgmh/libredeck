@@ -13,7 +13,7 @@ export async function updateDaemon(): Promise<{ success: boolean; message: strin
     const daemonDir = dirname(process.execPath);
 
     // Path to the CLI executable
-    const cliPath = path.join(daemonDir, 'libredeck-cli.exe');
+    const cliPath = join(daemonDir, 'libredeck-cli.exe');
 
     console.log(`📍 Daemon directory: ${daemonDir}`);
     console.log(`📍 CLI path: ${cliPath}`);
