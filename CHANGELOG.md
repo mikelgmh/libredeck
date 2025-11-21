@@ -1,3 +1,15 @@
+# [1.2.0](https://github.com/mikelgmh/libredeck/compare/v1.1.0...v1.2.0) (2025-11-21)
+
+
+### Bug Fixes
+
+* **daemon:** fix web-dist file serving in compiled executable ([a4f5702](https://github.com/mikelgmh/libredeck/commit/a4f570214eb41074f6f2d3af4dc5bd8ee64704ca))
+
+
+### Features
+
+* New release ([0b40831](https://github.com/mikelgmh/libredeck/commit/0b40831d1cbe6962872031dfc8f8a7a3735207dd))
+
 # [1.1.0](https://github.com/mikelgmh/libredeck/compare/v1.0.0...v1.1.0) (2025-11-19)
 
 
