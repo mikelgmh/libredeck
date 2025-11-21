@@ -162,7 +162,7 @@ start_dev() {
         start http://localhost:$FRONTEND_PORT
     fi
     
-    # Esperar a que se detengan los procesos
+    # Esperar a que se detengan procesos
     wait
 }
 
