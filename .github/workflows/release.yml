@@ -101,7 +101,7 @@ jobs:
       run: |
         cd cli
         bun run build
-        mv sdctl* libredeck-cli-v${{ steps.version.outputs.version }}-${{ matrix.target }}${{ matrix.ext }}
+        mv libredeck-cli* ../libredeck-cli-v${{ steps.version.outputs.version }}-${{ matrix.target }}${{ matrix.ext }}
 
     - name: Build Web
       run: |
@@ -115,7 +115,7 @@ jobs:
       run: |
         cd daemon
         bun run build
-        mv libredeck-daemon* libredeck-daemon-v${{ steps.version.outputs.version }}-${{ matrix.target }}${{ matrix.ext }}
+        mv libredeck-daemon* ../libredeck-daemon-v${{ steps.version.outputs.version }}-${{ matrix.target }}${{ matrix.ext }}
 
     - name: Setup Inno Setup (Windows only)
       if: matrix.installer == true
@@ -128,8 +128,8 @@ jobs:
       run: |
         mkdir -p dist/web-dist
         cp -r web/dist/* dist/web-dist/
-        cp daemon/libredeck-daemon-v${{ steps.version.outputs.version }}-${{ matrix.target }}${{ matrix.ext }} dist/libredeck-daemon${{ matrix.ext }}
-        cp cli/libredeck-cli-v${{ steps.version.outputs.version }}-${{ matrix.target }}${{ matrix.ext }} dist/libredeck-cli${{ matrix.ext }}
+        cp libredeck-daemon-v${{ steps.version.outputs.version }}-${{ matrix.target }}${{ matrix.ext }} dist/libredeck-daemon${{ matrix.ext }}
+        cp libredeck-cli-v${{ steps.version.outputs.version }}-${{ matrix.target }}${{ matrix.ext }} dist/libredeck-cli${{ matrix.ext }}
 
     - name: Build Windows Installer
       if: matrix.installer == true
@@ -144,8 +144,8 @@ jobs:
       with:
         name: libredeck-${{ matrix.os }}
         path: |
-          cli/libredeck-cli-v*-${{ matrix.target }}${{ matrix.ext }}
-          daemon/libredeck-daemon-v*-${{ matrix.target }}${{ matrix.ext }}
+          libredeck-cli-v*-${{ matrix.target }}${{ matrix.ext }}
+          libredeck-daemon-v*-${{ matrix.target }}${{ matrix.ext }}
           installer/LibreDeck-Setup-v*.exe
 
   release:
