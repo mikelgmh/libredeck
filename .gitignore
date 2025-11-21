@@ -115,5 +115,6 @@ Thumbs.db
 
 # Build outputs
 daemon/dist/
+daemon/web-dist/
 web/dist/
 cli/dist/

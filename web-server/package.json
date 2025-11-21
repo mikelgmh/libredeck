@@ -1,0 +1,12 @@
+{
+    "name": "libredeck-web-server",
+    "version": "1.0.0",
+    "description": "LibreDeck Web Server",
+    "main": "server.js",
+    "type": "module",
+    "scripts": {
+        "build": "bun build server.js --outfile=../dist/libredeck-web.exe --target=bun-windows-x64"
+    },
+    "dependencies": {},
+    "devDependencies": {}
+}

@@ -17,9 +17,9 @@ try {
 const path = require('path');
 const fs = require('fs');
 
-const PORT = Number(process.env.PORT) || 3001;
+const PORT = Number(process.argv.find(arg => arg.startsWith('--port='))?.split('=')[1]) || Number(process.env.PORT) || 3001;
 const WS_PORT = Number(process.env.WS_PORT) || 3003;
-const FRONTEND_PORT = Number(process.env.FRONTEND_PORT) || 3002;
+const FRONTEND_PORT = Number(process.argv.find(arg => arg.startsWith('--web-port='))?.split('=')[1]) || Number(process.env.FRONTEND_PORT) || 3002;
 const DEV_MODE = process.env.DEV_MODE === 'true';
 
 class LibreDeckDaemon {
@@ -232,9 +232,8 @@ class LibreDeckDaemon {
       }
     });
 
-    // Crear servidor frontend solo en producción
-    if (!DEV_MODE) {
-      this.frontendServer = Bun.serve({
+    // Crear servidor frontend
+    this.frontendServer = Bun.serve({
       port: FRONTEND_PORT,
       fetch: async (req: Request) => {
         const url = new URL(req.url);
@@ -243,13 +242,6 @@ class LibreDeckDaemon {
         const origin = req.headers.get('origin') || '*';
 
         // Configurar CORS - permitir localhost y cualquier IP local
-        const isLocalOrigin = origin === 'null' ||
-          origin.includes('localhost') ||
-          origin.includes('127.0.0.1') ||
-          origin.match(/https?:\/\/192\.168\.\d+\.\d+(:\d+)?/) ||
-          origin.match(/https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?/) ||
-          origin.match(/https?:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+(:\d+)?/);
-
         const corsHeaders = {
           'Access-Control-Allow-Origin': '*', // Allow all origins for development
           'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -271,28 +263,7 @@ class LibreDeckDaemon {
             wsPort: WS_PORT,
             apiPort: PORT
           };
-          
-          if (DEV_MODE) {
-            config.devMode = true;
-            // En modo dev, intentar detectar el puerto del frontend
-            for (let port = 3000; port <= 5000; port++) {
-              try {
-                const response = await fetch(`http://localhost:${port}`, { 
-                  method: 'HEAD',
-                  signal: AbortSignal.timeout(100)
-                });
-                if (response.ok) {
-                  config.frontendPort = port;
-                  break;
-                }
-              } catch (e) {
-                // Continue checking
-              }
-            }
-          } else {
-            config.frontendPort = FRONTEND_PORT;
-          }
-          
+
           return new Response(JSON.stringify(config), {
             headers: {
               ...corsHeaders,
@@ -308,9 +279,7 @@ class LibreDeckDaemon {
           // Buscar archivos web-dist en múltiples ubicaciones posibles
           const possiblePaths = [
             path.join(process.cwd(), 'web-dist'),           // Desde CWD
-            path.join(__dirname, '..', 'web-dist'),         // Desde src (desarrollo)
-            path.join(__dirname, 'web-dist'),               // Desde el directorio del ejecutable
-            path.join(path.dirname(process.execPath), 'web-dist') // Desde el directorio del ejecutable
+            path.join(path.dirname(process.execPath), 'web-dist'), // Desde el directorio del ejecutable
           ];
 
           for (const basePath of possiblePaths) {
@@ -336,9 +305,7 @@ class LibreDeckDaemon {
         // Fallback a index.html para SPA - buscar en las mismas ubicaciones
         const possibleIndexPaths = [
           path.join(process.cwd(), 'web-dist', 'index.html'),
-          path.join(__dirname, '..', 'web-dist', 'index.html'),
-          path.join(__dirname, 'web-dist', 'index.html'),
-          path.join(path.dirname(process.execPath), 'web-dist', 'index.html')
+          path.join(path.dirname(process.execPath), 'web-dist', 'index.html'),
         ];
 
         for (const indexPath of possibleIndexPaths) {
@@ -359,7 +326,7 @@ class LibreDeckDaemon {
 
         // Debug info si no se encuentra nada
         const debugInfo = possibleIndexPaths.map(p => `${p}: ${fs.existsSync(p)}`).join('<br>');
-        return new Response(`LibreDeck Frontend Server<br>__dirname: ${__dirname}<br>CWD: ${process.cwd()}<br>execPath: ${process.execPath}<br><br>Checked paths:<br>${debugInfo}`, {
+        return new Response(`LibreDeck Frontend Server<br>CWD: ${process.cwd()}<br>execPath: ${process.execPath}<br>execDir: ${path.dirname(process.execPath)}<br><br>Checked paths:<br>${debugInfo}`, {
           headers: {
             ...corsHeaders,
             'Content-Type': 'text/html'
@@ -371,37 +338,34 @@ class LibreDeckDaemon {
         return new Response('Internal Server Error', { status: 500 });
       }
     });
-    }
 
     console.log(`🚀 LibreDeck daemon started${DEV_MODE ? ' (DEV MODE)' : ''}`);
     console.log(`📡 API Server: http://localhost:${PORT}`);
-    if (!DEV_MODE) {
-      console.log(`🌐 Frontend Server: http://localhost:${FRONTEND_PORT}`);
-    }
+    console.log(`🌐 Frontend Server: http://localhost:${FRONTEND_PORT}`);
     console.log(`🔌 WebSocket: ws://localhost:${WS_PORT}`);
     console.log(`🩺 Health: http://localhost:${PORT}/health`);
 
     // Abrir navegador automáticamente solo en producción
     if (!DEV_MODE) {
-    const { spawn } = require('child_process');
-    const os = require('os');
-    const interfaces = os.networkInterfaces() as any;
-    let localIP = 'localhost';
-    for (const iface of Object.values(interfaces)) {
-      for (const addr of iface as any[]) {
-        if (addr.family === 'IPv4' && !addr.internal) {
-          localIP = addr.address;
-          break;
+      const { spawn } = require('child_process');
+      const os = require('os');
+      const interfaces = os.networkInterfaces() as any;
+      let localIP = 'localhost';
+      for (const iface of Object.values(interfaces)) {
+        for (const addr of iface as any[]) {
+          if (addr.family === 'IPv4' && !addr.internal) {
+            localIP = addr.address;
+            break;
+          }
+          if (localIP !== 'localhost') break;
         }
       }
-      if (localIP !== 'localhost') break;
-    }
-    const frontendPort = process.env.PORT_FRONTEND || FRONTEND_PORT;
-    try {
-      spawn('cmd', ['/c', 'start', '', `http://${localIP}:${frontendPort}`], { detached: true, stdio: 'ignore' });
-    } catch (error) {
-      console.error('Failed to open browser:', error);
-    }
+      const frontendPort = process.env.PORT_FRONTEND || FRONTEND_PORT;
+      try {
+        spawn('cmd', ['/c', 'start', '', `http://${localIP}:${frontendPort}`], { detached: true, stdio: 'ignore' });
+      } catch (error) {
+        console.error('Failed to open browser:', error);
+      }
     }
   }
 

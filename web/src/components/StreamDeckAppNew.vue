@@ -127,6 +127,7 @@
       :updateInfo="updateInfo"
       :isChecking="isCheckingUpdate"
       :isUpdating="isUpdating"
+      :updateResult="updateResult"
       @check-for-updates="checkForUpdates"
       @start-update="startUpdate"
     />
@@ -233,6 +234,7 @@ const checkForUpdates = async () => {
 
 const startUpdate = async () => {
   isUpdating.value = true
+  updateResult.value = null
   try {
     const daemonUrl = `http://${window.location.hostname}:3001/api/v1/update`
     const response = await fetch(daemonUrl, {
@@ -248,7 +250,7 @@ const startUpdate = async () => {
     }
   } catch (error) {
     console.error('Error starting update:', error)
-    alert('Error al iniciar la actualización. Inténtalo de nuevo.')
+    updateResult.value = { success: false, message: 'Error al iniciar la actualización. Inténtalo de nuevo.' }
   } finally {
     isUpdating.value = false
   }
@@ -276,6 +278,7 @@ const updateInfo = ref<any>(null)
 const isCheckingUpdate = ref<boolean>(false)
 const isUpdating = ref<boolean>(false)
 const updateCheckInterval = ref<NodeJS.Timeout | null>(null)
+const updateResult = ref<{ success: boolean; message: string } | null>(null)
 
 // Wake Lock state
 const wakeLock = ref<WakeLockSentinel | null>(null)
@@ -475,6 +478,12 @@ onMounted(async () => {
   await getCurrentVersion()
   await checkForUpdates()
   startPeriodicUpdateCheck()
+
+  // Listen for update completion events
+  window.addEventListener('update-completed', (event: any) => {
+    updateResult.value = event.detail
+    isUpdating.value = false
+  })
 })
 
 onUnmounted(() => {

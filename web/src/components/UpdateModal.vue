@@ -35,12 +35,12 @@
             <div class="update-actions">
               <button
                 @click="startUpdate"
-                :disabled="props.isUpdating"
+                :disabled="props.isUpdating || props.updateResult !== null"
                 class="btn btn-primary update-btn"
               >
                 <component v-if="props.isUpdating" :is="getLucideIcon('loader')" class="spinning" />
                 <component v-else :is="getLucideIcon('download')" />
-                {{ props.isUpdating ? 'Actualizando...' : 'Actualizar Ahora' }}
+                {{ props.isUpdating ? 'Actualizando...' : props.updateResult ? 'Actualización completada' : 'Actualizar Ahora' }}
               </button>
 
               <button
@@ -48,7 +48,7 @@
                 :disabled="props.isUpdating"
                 class="btn btn-secondary cancel-btn"
               >
-                Más Tarde
+                {{ props.updateResult ? 'Cerrar' : 'Más Tarde' }}
               </button>
             </div>
           </div>
@@ -67,7 +67,17 @@
                 :style="{ width: updateProgress + '%' }"
               ></div>
             </div>
-            <div class="progress-text">{{ updateProgress }}% completado</div>
+            <div class="progress-text">{{ updateStatus }}</div>
+          </div>
+
+          <div v-if="props.updateResult" class="update-result">
+            <div class="alert" :class="props.updateResult.success ? 'alert-success' : 'alert-error'">
+              <component :is="getLucideIcon(props.updateResult.success ? 'check-circle' : 'x-circle')" />
+              {{ props.updateResult.message }}
+            </div>
+            <div v-if="props.updateResult.success" class="restart-notice">
+              <p>La aplicación se reiniciará automáticamente en unos segundos...</p>
+            </div>
           </div>
         </div>
 
@@ -103,6 +113,7 @@ interface Props {
   updateInfo: UpdateInfo | null
   isChecking: boolean
   isUpdating: boolean
+  updateResult: { success: boolean; message: string } | null
 }
 
 interface Emits {
@@ -116,6 +127,8 @@ const emit = defineEmits<Emits>()
 const dialog = ref<HTMLDialogElement | null>(null)
 const isClosing = ref(false)
 const updateProgress = ref<number | null>(null)
+const updateStatus = ref<string>('')
+const updateResult = ref<{ success: boolean; message: string } | null>(null)
 
 // Get Lucide icon component by name
 const getLucideIcon = (iconName: string) => {
@@ -124,7 +137,8 @@ const getLucideIcon = (iconName: string) => {
     'update': 'RefreshCw',
     'download': 'Download',
     'loader': 'Loader',
-    'check-circle': 'CheckCircle'
+    'check-circle': 'CheckCircle',
+    'x-circle': 'XCircle'
   }
   const mappedName = iconMap[iconName] || iconName
   return icons[mappedName] || icons['RefreshCw']
@@ -153,7 +167,14 @@ const checkForUpdates = () => {
 }
 
 const startUpdate = () => {
+  updateStatus.value = 'Iniciando actualización...'
+  updateProgress.value = 10
   emit('start-update')
+}
+
+const resetUpdateState = () => {
+  updateProgress.value = null
+  updateStatus.value = ''
 }
 
 const formatReleaseNotes = (notes: string) => {
@@ -353,10 +374,22 @@ defineExpose({
   border: 1px solid rgba(34, 197, 94, 0.2);
 }
 
-.alert-info {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
-  border: 1px solid rgba(59, 130, 246, 0.2);
+.alert-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.restart-notice {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.restart-notice p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.875rem;
+  font-style: italic;
 }
 
 .release-notes {

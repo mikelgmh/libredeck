@@ -318,6 +318,15 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
       case 'action.finished':
         // Remove executing state after action completes
         break
+      case 'update.completed':
+        console.log('🔄 Update completed:', message.payload);
+        // Emit custom event for update completion
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('update-completed', { 
+            detail: message.payload 
+          }));
+        }
+        break
     }
   }
 

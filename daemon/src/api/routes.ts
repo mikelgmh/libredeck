@@ -33,8 +33,8 @@ export async function setupAPIRoutes(
     // Test endpoint for connectivity
     if (path === '/api/v1/test') {
       if (method === 'GET') {
-        return jsonResponse({ 
-          status: 'ok', 
+        return jsonResponse({
+          status: 'ok',
           message: 'Daemon is running',
           timestamp: Date.now()
         })
@@ -320,7 +320,7 @@ export async function setupAPIRoutes(
       if (method === 'GET') {
         const loadedPlugins = Array.from(services.pluginLoader.getLoadedPlugins().entries());
         const pluginActions = Array.from(services.pluginLoader.getPluginActions().entries());
-        
+
         // Group actions by plugin
         const pluginsWithActions = loadedPlugins.map(([pluginId, plugin]) => [
           pluginId,
@@ -332,7 +332,7 @@ export async function setupAPIRoutes(
               .map(([actionId, action]) => [actionId.split('.')[1], action])
           }
         ]);
-        
+
         return jsonResponse(pluginsWithActions);
       }
     }
@@ -450,7 +450,7 @@ export async function setupAPIRoutes(
             // Extract JSON from output (PowerShell might output extra lines)
             const lines = output.trim().split('\n').filter(line => line.trim())
             const jsonLine = lines.find(line => line.trim().startsWith('{') || line.trim().startsWith('@{'))
-            
+
             if (jsonLine) {
               const windowInfo = JSON.parse(jsonLine.trim())
               return jsonResponse(windowInfo)
@@ -467,7 +467,7 @@ export async function setupAPIRoutes(
           return jsonResponse({ error: 'Failed to get active window' }, 500)
         }
       }
-    }    if (path === '/api/v1/windows/list') {
+    } if (path === '/api/v1/windows/list') {
       if (method === 'GET') {
         // Obtener lista de todas las ventanas visibles usando PowerShell
         const powershellScript = `
@@ -577,7 +577,7 @@ export async function setupAPIRoutes(
               executablePath: "C:\\Users\\Mikel\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
             },
             {
-              hwnd: "87654321", 
+              hwnd: "87654321",
               title: "Google Chrome",
               processId: 5678,
               processName: "chrome",
@@ -591,7 +591,7 @@ export async function setupAPIRoutes(
               executablePath: "C:\\Windows\\System32\\notepad.exe"
             }
           ]
-          
+
           return jsonResponse(mockWindows)
         }
       }
@@ -604,14 +604,14 @@ export async function setupAPIRoutes(
 
         if (action === 'start' && rules) {
           services.windowWatcher.updateRules(rules)
-          
+
           // Connect window watcher events to WebSocket for profile switching
           services.windowWatcher.on('profile-switch', (profileId: string, window: any) => {
             // Update current profile in window watcher
             services.windowWatcher.setCurrentProfile(profileId);
             services.wsManager?.broadcast('profile.navigate', { profileId }, 'profiles');
           });
-          
+
           services.windowWatcher.startWatching(rules)
           return jsonResponse({ status: 'started' })
         } else if (action === 'stop') {
@@ -787,286 +787,38 @@ export async function setupAPIRoutes(
       }
     }
 
+    // Update endpoints
     if (path === '/api/v1/update') {
       if (method === 'POST') {
         try {
-          console.log('🚀 Starting real update process...');
+          // Import the update function dynamically
+          const { updateDaemon } = await import('../update');
 
-          // Get current version and latest release info
-          const packageJsonPath = join(__dirname, '..', '..', 'package.json');
-          const packageJson = await Bun.file(packageJsonPath).json();
-          const currentVersion = packageJson.version || '0.1.0';
+          // Run update in background
+          updateDaemon().then(result => {
+            console.log('Update completed:', result);
 
-          // Get latest release from GitHub
-          const releaseResponse = await fetch('https://api.github.com/repos/mikelgmh/libredeck/releases/latest', {
-            headers: {
-              'User-Agent': 'LibreDeck-Updater'
-            }
-          });
+            // Broadcast update result via WebSocket
+            services.wsManager.broadcast('update.completed', result);
 
-          if (!releaseResponse.ok) {
-            throw new Error('Failed to fetch latest release from GitHub');
-          }
-
-          // Verify this is a legitimate LibreDeck release
-          if (!latestRelease.author || latestRelease.author.login !== 'mikelgmh') {
-            throw new Error('Invalid release author');
-          }
-
-          if (!latestRelease.draft && !latestRelease.prerelease) {
-            console.log('✅ Release verified as legitimate');
-          } else {
-            throw new Error('Only stable releases are supported for auto-update');
-          }
-
-          if (latestVersion === currentVersion) {
-            return jsonResponse({
+            // No need to exit, CLI handles restart
+          }).catch(error => {
+            console.error('Update failed:', error);
+            services.wsManager.broadcast('update.completed', {
               success: false,
-              message: 'Already up to date',
-              currentVersion,
-              latestVersion
+              message: error instanceof Error ? error.message : 'Unknown error'
             });
-          }
-
-          // Find ZIP asset
-          const zipAsset = latestRelease.assets.find((asset: any) =>
-            asset.name.endsWith('.zip') && !asset.name.includes('debug')
-          );
-
-          if (!zipAsset) {
-            throw new Error('No ZIP asset found in latest release');
-          }
-
-          console.log(`📦 Downloading ${zipAsset.name} (${zipAsset.size} bytes)...`);
-
-          // Create temp directory
-          const tempDir = join(__dirname, '..', '..', '..', 'temp');
-          const backupDir = join(__dirname, '..', '..', '..', 'backup');
-          const extractDir = join(tempDir, 'extracted');
-
-          await mkdir(tempDir, { recursive: true });
-          await mkdir(extractDir, { recursive: true });
-
-          // Download ZIP file
-          const zipPath = join(tempDir, zipAsset.name);
-          const downloadResponse = await fetch(zipAsset.browser_download_url);
-
-          if (!downloadResponse.ok) {
-            throw new Error('Failed to download update package');
-          }
-
-          const fileStream = createWriteStream(zipPath);
-          await pipeline(downloadResponse.body as any, fileStream);
-
-          console.log('📦 Download completed, extracting...');
-
-          // Extract ZIP using PowerShell
-          const extractScript = `
-            try {
-              $zipPath = "${zipPath.replace(/\\/g, '\\\\')}"
-              $extractPath = "${extractDir.replace(/\\/g, '\\\\')}"
-
-              # Create extract directory if it doesn't exist
-              if (!(Test-Path $extractPath)) {
-                New-Item -ItemType Directory -Path $extractPath | Out-Null
-              }
-
-              # Extract ZIP
-              Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
-
-              # Find the main directory (should be the only directory in extracted)
-              $items = Get-ChildItem $extractPath
-              if ($items.Count -eq 1 -and $items[0].PSIsContainer) {
-                $mainDir = $items[0].FullName
-                @{ success = $true; mainDir = $mainDir }
-              } else {
-                @{ success = $true; mainDir = $extractPath }
-              }
-            } catch {
-              @{ success = $false; error = $_.Exception.Message }
-            }
-          `.trim();
-
-          const extractProc = Bun.spawn({
-            cmd: ['powershell.exe', '-Command', extractScript],
-            stdio: ['ignore', 'pipe', 'pipe']
           });
-
-          const extractOutput = await new Response(extractProc.stdout).text();
-          const extractError = await new Response(extractProc.stderr).text();
-          await extractProc.exited;
-
-          if (extractProc.exitCode !== 0) {
-            throw new Error(`Failed to extract ZIP: ${extractError}`);
-          }
-
-          const extractResult = JSON.parse(extractOutput.trim());
-          if (!extractResult.success) {
-            throw new Error(`Extraction failed: ${extractResult.error}`);
-          }
-
-          const sourceDir = extractResult.mainDir;
-          console.log(`📦 Extracted to: ${sourceDir}`);
-
-          // Verify extracted files
-          const requiredFiles = ['package.json', 'daemon', 'web'];
-          for (const file of requiredFiles) {
-            const filePath = join(sourceDir, file);
-            try {
-              await Bun.file(filePath).stat();
-            } catch {
-              throw new Error(`Required file/directory missing: ${file}`);
-            }
-          }
-
-          console.log('✅ Update package verified');
-
-          // Create backup
-          console.log('💾 Creating backup...');
-          await mkdir(backupDir, { recursive: true });
-
-          const projectRoot = join(__dirname, '..', '..');
-          const backupScript = `
-            try {
-              $source = "${projectRoot.replace(/\\/g, '\\\\')}"
-              $backup = "${backupDir.replace(/\\/g, '\\\\')}"
-
-              # Copy current installation to backup
-              Copy-Item -Path $source -Destination $backup -Recurse -Force
-
-              @{ success = $true }
-            } catch {
-              @{ success = $false; error = $_.Exception.Message }
-            }
-          `.trim();
-
-          const backupProc = Bun.spawn({
-            cmd: ['powershell.exe', '-Command', backupScript],
-            stdio: ['ignore', 'pipe', 'pipe']
-          });
-
-          const backupOutput = await new Response(backupProc.stdout).text();
-          await backupProc.exited;
-
-          if (backupProc.exitCode !== 0) {
-            throw new Error('Failed to create backup');
-          }
-
-          console.log('✅ Backup created');
-
-          // Replace files
-          console.log('🔄 Replacing files...');
-          const replaceScript = `
-            try {
-              $source = "${sourceDir.replace(/\\/g, '\\\\')}"
-              $target = "${projectRoot.replace(/\\/g, '\\\\')}"
-
-              # Copy new files over old ones
-              Get-ChildItem $source | ForEach-Object {
-                $dest = Join-Path $target $_.Name
-                if ($_.PSIsContainer) {
-                  Copy-Item $_.FullName $dest -Recurse -Force
-                } else {
-                  Copy-Item $_.FullName $dest -Force
-                }
-              }
-
-              @{ success = $true }
-            } catch {
-              @{ success = $false; error = $_.Exception.Message }
-            }
-          `.trim();
-
-          const replaceProc = Bun.spawn({
-            cmd: ['powershell.exe', '-Command', replaceScript],
-            stdio: ['ignore', 'pipe', 'pipe']
-          });
-
-          const replaceOutput = await new Response(replaceProc.stdout).text();
-          await replaceProc.exited;
-
-          if (replaceProc.exitCode !== 0) {
-            throw new Error('Failed to replace files');
-          }
-
-          console.log('✅ Files replaced');
-
-          // Clean up temp files
-          await rm(tempDir, { recursive: true, force: true });
-
-          console.log('🧹 Cleanup completed');
-
-          // Schedule restart
-          console.log('🔄 Scheduling application restart...');
-          setTimeout(() => {
-            console.log('🚀 Restarting application...');
-
-            // Get current process info to restart
-            const currentProcess = process.argv[0]; // node or bun
-            const currentScript = process.argv[1]; // script path
-
-            // Spawn new process
-            const child = spawn(currentProcess, [currentScript], {
-              detached: true,
-              stdio: 'ignore'
-            });
-
-            child.unref();
-
-            // Exit current process
-            process.exit(0);
-          }, 2000);
 
           return jsonResponse({
             success: true,
-            message: 'Update completed successfully. Application will restart in a few seconds.',
-            previousVersion: currentVersion,
-            newVersion: latestVersion,
-            restarted: true
+            message: 'Update started in background'
           });
-
         } catch (error) {
-          console.error('❌ Update failed:', error);
-
-          // Try to restore backup if update failed
-          try {
-            const backupDir = join(__dirname, '..', '..', '..', 'backup');
-            const projectRoot = join(__dirname, '..', '..');
-
-            const restoreScript = `
-              try {
-                $backup = "${backupDir.replace(/\\/g, '\\\\')}"
-                $target = "${projectRoot.replace(/\\/g, '\\\\')}"
-
-                if (Test-Path $backup) {
-                  Copy-Item -Path $backup -Destination $target -Recurse -Force
-                  @{ success = $true }
-                } else {
-                  @{ success = $false; error = "Backup not found" }
-                }
-              } catch {
-                @{ success = $false; error = $_.Exception.Message }
-              }
-            `.trim();
-
-            const restoreProc = Bun.spawn({
-              cmd: ['powershell.exe', '-Command', restoreScript],
-              stdio: ['ignore', 'pipe', 'pipe']
-            });
-
-            await restoreProc.exited;
-
-            if (restoreProc.exitCode === 0) {
-              console.log('✅ Backup restored after failed update');
-            }
-          } catch (restoreError) {
-            console.error('❌ Failed to restore backup:', restoreError);
-          }
-
+          console.error('Failed to start update:', error);
           return jsonResponse({
             success: false,
-            error: 'Update failed',
-            details: error instanceof Error ? error.message : 'Unknown error'
+            message: error instanceof Error ? error.message : 'Failed to start update'
           }, 500);
         }
       }
