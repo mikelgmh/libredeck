@@ -129,15 +129,7 @@
       </div>
     </div>
 
-    <!-- Save Button -->
-    <div class="flex justify-end mt-4">
-      <button 
-        class="btn btn-primary btn-sm"
-        data-cy="save-button"
-      >
-        {{ t('buttonEditor.save') }}
-      </button>
-    </div>
+    <!-- Save is automatic, no manual save button needed -->
   </div>
 </template>
 

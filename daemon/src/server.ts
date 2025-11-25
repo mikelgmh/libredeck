@@ -38,6 +38,9 @@ class LibreDeckDaemon {
       await initDatabase();
       console.log('✓ Database initialized');
 
+      // Crear perfil inicial si no existe ninguno
+      await this.initializeDefaultProfile();
+
       // Inicializar sistemas
       this.pluginLoader = new PluginLoader();
       this.actionRunner = new ActionRunner(this.pluginLoader);
@@ -84,6 +87,54 @@ class LibreDeckDaemon {
     }
   }
 
+  private async initializeDefaultProfile() {
+    try {
+      const db = new DatabaseService();
+      const profiles = db.getProfiles();
+
+      // Si no hay perfiles, crear uno por defecto
+      if (profiles.length === 0) {
+        console.log('📝 Creating default profile...');
+
+        const { v4: uuidv4 } = await import('uuid');
+
+        // Crear perfil por defecto
+        const defaultProfile = {
+          id: uuidv4(),
+          name: 'Perfil Principal',
+          data: {
+            isDefault: true,
+            gridCols: 5,
+            gridRows: 3
+          }
+        };
+
+        db.createProfile(defaultProfile);
+        console.log('✅ Default profile created:', defaultProfile.id);
+
+        // Crear página por defecto
+        const defaultPage = {
+          id: uuidv4(),
+          profile_id: defaultProfile.id,
+          name: 'Página Principal',
+          order_idx: 0,
+          is_folder: 0,
+          data: {
+            gridCols: 5,
+            gridRows: 3
+          }
+        };
+
+        db.createPage(defaultPage);
+        console.log('✅ Default page created:', defaultPage.id);
+      } else {
+        console.log('ℹ️ Profiles already exist, skipping default profile creation');
+      }
+    } catch (error) {
+      console.error('❌ Failed to initialize default profile:', error);
+    }
+  }
+
   private initializeTray() {
     try {
       // Solo intentar inicializar tray en Windows y si el módulo está disponible
@@ -92,7 +143,7 @@ class LibreDeckDaemon {
         return;
       }
 
-      Tray.create({ title: 'LibreDeck Daemon' }, (tray) => {
+      Tray.create({ title: 'LibreDeck Daemon' }, (tray: any) => {
         const openItem = tray.item("Abrir LibreDeck", () => {
           const { exec } = require('child_process');
           const os = require('os');
