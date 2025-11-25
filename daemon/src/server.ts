@@ -232,116 +232,122 @@ class LibreDeckDaemon {
       }
     });
 
-    // Crear servidor frontend
-    this.frontendServer = Bun.serve({
-      port: FRONTEND_PORT,
-      fetch: async (req: Request) => {
-        const url = new URL(req.url);
+    // Crear servidor frontend (solo en producción)
+    if (!DEV_MODE) {
+      this.frontendServer = Bun.serve({
+        port: FRONTEND_PORT,
+        fetch: async (req: Request) => {
+          const url = new URL(req.url);
 
-        // Obtener origin del request
-        const origin = req.headers.get('origin') || '*';
+          // Obtener origin del request
+          const origin = req.headers.get('origin') || '*';
 
-        // Configurar CORS - permitir localhost y cualquier IP local
-        const corsHeaders = {
-          'Access-Control-Allow-Origin': '*', // Allow all origins for development
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-          'Access-Control-Allow-Credentials': 'true'
-        };
-
-        // Manejar preflight OPTIONS
-        if (req.method === 'OPTIONS') {
-          return new Response(null, {
-            status: 204,
-            headers: corsHeaders
-          });
-        }
-
-        // Servir config
-        if (url.pathname === '/config') {
-          const config: any = {
-            wsPort: WS_PORT,
-            apiPort: PORT
+          // Configurar CORS - permitir localhost y cualquier IP local
+          const corsHeaders = {
+            'Access-Control-Allow-Origin': '*', // Allow all origins for development
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+            'Access-Control-Allow-Credentials': 'true'
           };
 
-          return new Response(JSON.stringify(config), {
-            headers: {
-              ...corsHeaders,
-              'Content-Type': 'application/json'
+          // Manejar preflight OPTIONS
+          if (req.method === 'OPTIONS') {
+            return new Response(null, {
+              status: 204,
+              headers: corsHeaders
+            });
+          }
+
+          // Servir config
+          if (url.pathname === '/config') {
+            const config: any = {
+              wsPort: WS_PORT,
+              apiPort: PORT
+            };
+
+            return new Response(JSON.stringify(config), {
+              headers: {
+                ...corsHeaders,
+                'Content-Type': 'application/json'
+              }
+            });
+          }
+
+          // Servir web-dist (UI embebida)
+          try {
+            let filePath = url.pathname === '/' ? '/index.html' : url.pathname;
+
+            // Buscar archivos web-dist en múltiples ubicaciones posibles
+            const possiblePaths = [
+              path.join(process.cwd(), 'web-dist'),           // Desde CWD
+              path.join(path.dirname(process.execPath), 'web-dist'), // Desde el directorio del ejecutable
+            ];
+
+            for (const basePath of possiblePaths) {
+              const fullPath = path.join(basePath, filePath.slice(1));
+              try {
+                const file = Bun.file(fullPath);
+                if (await file.exists()) {
+                  return new Response(file, {
+                    headers: {
+                      ...corsHeaders,
+                      'Content-Type': this.getContentType(filePath)
+                    }
+                  });
+                }
+              } catch (error) {
+                // Continuar buscando en la siguiente ubicación
+              }
             }
-          });
-        }
+          } catch (error) {
+            console.error('Error serving web file:', error);
+          }
 
-        // Servir web-dist (UI embebida)
-        try {
-          let filePath = url.pathname === '/' ? '/index.html' : url.pathname;
-
-          // Buscar archivos web-dist en múltiples ubicaciones posibles
-          const possiblePaths = [
-            path.join(process.cwd(), 'web-dist'),           // Desde CWD
-            path.join(path.dirname(process.execPath), 'web-dist'), // Desde el directorio del ejecutable
+          // Fallback a index.html para SPA - buscar en las mismas ubicaciones
+          const possibleIndexPaths = [
+            path.join(process.cwd(), 'web-dist', 'index.html'),
+            path.join(path.dirname(process.execPath), 'web-dist', 'index.html'),
           ];
 
-          for (const basePath of possiblePaths) {
-            const fullPath = path.join(basePath, filePath.slice(1));
+          for (const indexPath of possibleIndexPaths) {
             try {
-              const file = Bun.file(fullPath);
-              if (await file.exists()) {
-                return new Response(file, {
+              const indexFile = Bun.file(indexPath);
+              if (await indexFile.exists()) {
+                return new Response(indexFile, {
                   headers: {
                     ...corsHeaders,
-                    'Content-Type': this.getContentType(filePath)
+                    'Content-Type': 'text/html'
                   }
                 });
               }
             } catch (error) {
-              // Continuar buscando en la siguiente ubicación
+              // Continuar buscando
             }
           }
-        } catch (error) {
-          console.error('Error serving web file:', error);
-        }
 
-        // Fallback a index.html para SPA - buscar en las mismas ubicaciones
-        const possibleIndexPaths = [
-          path.join(process.cwd(), 'web-dist', 'index.html'),
-          path.join(path.dirname(process.execPath), 'web-dist', 'index.html'),
-        ];
-
-        for (const indexPath of possibleIndexPaths) {
-          try {
-            const indexFile = Bun.file(indexPath);
-            if (await indexFile.exists()) {
-              return new Response(indexFile, {
-                headers: {
-                  ...corsHeaders,
-                  'Content-Type': 'text/html'
-                }
-              });
+          // Debug info si no se encuentra nada
+          const debugInfo = possibleIndexPaths.map(p => `${p}: ${fs.existsSync(p)}`).join('<br>');
+          return new Response(`LibreDeck Frontend Server<br>CWD: ${process.cwd()}<br>execPath: ${process.execPath}<br>execDir: ${path.dirname(process.execPath)}<br><br>Checked paths:<br>${debugInfo}`, {
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'text/html'
             }
-          } catch (error) {
-            // Continuar buscando
-          }
+          });
+        },
+        error: (error) => {
+          console.error('Frontend Server error:', error);
+          return new Response('Internal Server Error', { status: 500 });
         }
-
-        // Debug info si no se encuentra nada
-        const debugInfo = possibleIndexPaths.map(p => `${p}: ${fs.existsSync(p)}`).join('<br>');
-        return new Response(`LibreDeck Frontend Server<br>CWD: ${process.cwd()}<br>execPath: ${process.execPath}<br>execDir: ${path.dirname(process.execPath)}<br><br>Checked paths:<br>${debugInfo}`, {
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'text/html'
-          }
-        });
-      },
-      error: (error) => {
-        console.error('Frontend Server error:', error);
-        return new Response('Internal Server Error', { status: 500 });
-      }
-    });
+      });
+    }
 
     console.log(`🚀 LibreDeck daemon started${DEV_MODE ? ' (DEV MODE)' : ''}`);
     console.log(`📡 API Server: http://localhost:${PORT}`);
-    console.log(`🌐 Frontend Server: http://localhost:${FRONTEND_PORT}`);
+    if (!DEV_MODE) {
+      console.log(`🌐 Frontend Server: http://localhost:${FRONTEND_PORT}`);
+    } else {
+      console.log(`🌐 Frontend Server: Disabled in DEV MODE (use npm run dev in web/)`);
+    }
     console.log(`🔌 WebSocket: ws://localhost:${WS_PORT}`);
     console.log(`🩺 Health: http://localhost:${PORT}/health`);
 

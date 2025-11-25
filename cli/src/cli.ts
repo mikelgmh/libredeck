@@ -122,7 +122,7 @@ program
   .command('start')
   .description('Iniciar el daemon de LibreDeck')
   .option('-p, --port <port>', 'Puerto para la API HTTP', '3001')
-  .option('-w, --ws-port <port>', 'Puerto para WebSocket', '3003')
+  .option('-w, --ws-port <port>', 'Puerto para WebSocket', '3002')
   .option('-d, --detach', 'Ejecutar en segundo plano')
   .action(async (options) => {
     const spinner = ora('Iniciando LibreDeck daemon...').start();

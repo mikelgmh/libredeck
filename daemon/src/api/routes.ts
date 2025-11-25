@@ -41,6 +41,18 @@ export async function setupAPIRoutes(
       }
     }
 
+    // Config endpoint for frontend
+    if (path === '/config') {
+      if (method === 'GET') {
+        const config: any = {
+          wsPort: 3002,
+          apiPort: 3001,
+          frontendPort: 4321
+        };
+        return jsonResponse(config);
+      }
+    }
+
     // Profiles endpoints
     if (path === '/api/v1/profiles') {
       if (method === 'GET') {
@@ -745,7 +757,7 @@ export async function setupAPIRoutes(
               await Bun.file(path).stat();
               packageJsonPath = path;
               break;
-            } catch {}
+            } catch { }
           }
 
           if (!packageJsonPath) {
@@ -783,7 +795,7 @@ export async function setupAPIRoutes(
               await Bun.file(path).stat();
               packageJsonPath = path;
               break;
-            } catch {}
+            } catch { }
           }
 
           if (!packageJsonPath) {
@@ -829,12 +841,12 @@ export async function setupAPIRoutes(
     if (path === '/api/v1/admin/shutdown') {
       if (method === 'POST') {
         console.log('Shutdown requested via API');
-        
+
         // Graceful shutdown - wait longer to allow CLI to process response
         setTimeout(() => {
           process.exit(0);
         }, 2000); // Increased delay to 2 seconds
-        
+
         return jsonResponse({ success: true, message: 'Shutting down...' });
       }
     }

@@ -150,7 +150,7 @@ start_dev() {
     if [ -n "$LOCAL_IP" ]; then
         echo -e "   🌐 Panel Red LAN: ${BLUE}http://${LOCAL_IP}:$FRONTEND_PORT${NC}"
     fi
-    echo -e "   🔌 WebSocket: ${BLUE}ws://localhost:3003${NC}"
+    echo -e "   🔌 WebSocket: ${BLUE}ws://localhost:3002${NC}"
     echo ""
     echo -e "${YELLOW}Presiona Ctrl+C para detener${NC}"
     

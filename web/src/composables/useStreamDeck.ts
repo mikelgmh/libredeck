@@ -49,52 +49,52 @@ export function useStreamDeck() {
   // Flag to prevent infinite loops when receiving profile change broadcasts
   const isRemoteProfileChange = ref(false)
 
-// Get dynamic base URLs based on current host
-const config = ref({ wsPort: 3003, apiPort: 3001, frontendPort: 4321 });
+  // Get dynamic base URLs based on current host
+  const config = ref({ wsPort: 3002, apiPort: 3001, frontendPort: 4321 });
 
-const loadConfig = async () => {
-  try {
-    // En modo dev, hacer fetch al daemon directamente
-    const configUrl = typeof window !== 'undefined' && window.location.port !== '3001' 
-      ? 'http://localhost:3001/config' 
-      : '/config';
-    const res = await fetch(configUrl);
-    const data = await res.json();
-    config.value = data;
-    console.log('🔧 Loaded config:', config.value);
-  } catch (e) {
-    console.error('Failed to load config', e);
+  const loadConfig = async () => {
+    try {
+      // En modo dev, hacer fetch al daemon directamente
+      const configUrl = typeof window !== 'undefined' && window.location.port !== '3001'
+        ? 'http://localhost:3001/config'
+        : '/config';
+      const res = await fetch(configUrl);
+      const data = await res.json();
+      config.value = data;
+      console.log('🔧 Loaded config:', config.value);
+    } catch (e) {
+      console.error('Failed to load config', e);
+    }
+  };
+
+  const getApiBase = () => {
+    if (typeof window !== 'undefined') {
+      const protocol = window.location.protocol
+      const hostname = window.location.hostname
+      return `${protocol}//${hostname}:${config.value.apiPort}/api/v1`
+    }
+    return 'http://localhost:3001/api/v1'
   }
-};
 
-const getApiBase = () => {
-  if (typeof window !== 'undefined') {
-    const protocol = window.location.protocol
-    const hostname = window.location.hostname
-    return `${protocol}//${hostname}:${config.value.apiPort}/api/v1`
+  const getWsUrl = () => {
+    if (typeof window !== 'undefined') {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const hostname = window.location.hostname
+      return `${protocol}//${hostname}:${config.value.wsPort}`
+    }
+    return 'ws://localhost:3002'
   }
-  return 'http://localhost:3001/api/v1'
-}
 
-const getWsUrl = () => {
-  if (typeof window !== 'undefined') {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const hostname = window.location.hostname
-    return `${protocol}//${hostname}:${config.value.wsPort}`
-  }
-  return 'ws://localhost:3003'
-}
+  const getFrontendUrl = () => {
+    if (typeof window !== 'undefined') {
+      return window.location.origin
+    }
+    return 'http://localhost:4321'
+  };
 
-const getFrontendUrl = () => {
-  if (typeof window !== 'undefined') {
-    return window.location.origin
-  }
-  return 'http://localhost:4321'
-};
-
-const API_BASE = computed(() => getApiBase())
-const WS_URL = computed(() => getWsUrl())
-const FRONTEND_URL = computed(() => getFrontendUrl())
+  const API_BASE = computed(() => getApiBase())
+  const WS_URL = computed(() => getWsUrl())
+  const FRONTEND_URL = computed(() => getFrontendUrl())
 
   // Storage keys
   const STORAGE_KEYS = {
@@ -124,8 +124,8 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
         console.log(`📊 Applying dynamic value for selected button at position ${position}:`, dynamicValue)
         return {
           ...config,
-          dynamicValue: dynamicValue.value !== undefined && dynamicValue.unit ? 
-            `${dynamicValue.value}${dynamicValue.unit}` : 
+          dynamicValue: dynamicValue.value !== undefined && dynamicValue.unit ?
+            `${dynamicValue.value}${dynamicValue.unit}` :
             (dynamicValue.description || 'N/A'),
         }
       }
@@ -145,19 +145,19 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
       actions: []
     }
 
-      // Check for dynamic values (any plugin with dynamic actions)
-      const dynamicValue = dynamicButtonValues.value.get(position)
-      if (dynamicValue && hasDynamicAction(button!)) {
-        console.log(`📊 Applying dynamic value for position ${position}:`, dynamicValue)
-        // For dynamic actions, show dynamic value instead of static label
-        return {
-          ...savedData,
-          dynamicValue: dynamicValue.value !== undefined && dynamicValue.unit ? 
-            `${dynamicValue.value}${dynamicValue.unit}` : 
-            (dynamicValue.description || 'N/A'),
-          // Keep other properties from saved data
-        }
-      }    return savedData
+    // Check for dynamic values (any plugin with dynamic actions)
+    const dynamicValue = dynamicButtonValues.value.get(position)
+    if (dynamicValue && hasDynamicAction(button!)) {
+      console.log(`📊 Applying dynamic value for position ${position}:`, dynamicValue)
+      // For dynamic actions, show dynamic value instead of static label
+      return {
+        ...savedData,
+        dynamicValue: dynamicValue.value !== undefined && dynamicValue.unit ?
+          `${dynamicValue.value}${dynamicValue.unit}` :
+          (dynamicValue.description || 'N/A'),
+        // Keep other properties from saved data
+      }
+    } return savedData
   })
 
   const getButtonStyle = computed(() => (position: number) => {
@@ -322,8 +322,8 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
         console.log('🔄 Update completed:', message.payload);
         // Emit custom event for update completion
         if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('update-completed', { 
-            detail: message.payload 
+          window.dispatchEvent(new CustomEvent('update-completed', {
+            detail: message.payload
           }));
         }
         break
@@ -369,7 +369,7 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
           }
         }
         const updatedData = { ...data, isDefault: true }
-        
+
         await apiRequest(`/profiles/${firstProfile.id}`, {
           method: 'PUT',
           body: JSON.stringify({
@@ -377,7 +377,7 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
             data: updatedData
           })
         })
-        
+
         // Update local data
         firstProfile.data = updatedData
         console.log('Marked first profile as default:', firstProfile.id)
@@ -459,7 +459,7 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
       if (firstPage) {
         currentPage.value = firstPage
         await loadButtons()
-        
+
         // Start dynamic updates for PC Vitals buttons
         await startDynamicUpdates()
       } else {
@@ -873,7 +873,7 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
   const selectProfile = async (profileId: string) => {
     // Stop existing dynamic updates
     stopDynamicUpdates()
-    
+
     selectedProfile.value = profileId
     await loadProfile()
 
@@ -889,7 +889,7 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
     try {
       const newProfile = await apiRequest('/profiles', {
         method: 'POST',
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           name: name.trim(),
           data: {} // New profiles are not default
         })
@@ -988,7 +988,7 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
           }
         }
         const updatedData = { ...data, isDefault: true }
-        
+
         await apiRequest(`/profiles/${newDefaultProfile.id}`, {
           method: 'PUT',
           body: JSON.stringify({
@@ -996,7 +996,7 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
             data: updatedData
           })
         })
-        
+
         // Update local data
         newDefaultProfile.data = updatedData
         console.log('Marked new default profile:', newDefaultProfile.id)
@@ -1106,7 +1106,7 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
       if (error.message?.includes('409') || error.message?.includes('already exists')) {
         throw new Error(`Ya existe una página con el nombre "${name}" en este perfil`)
       }
-      
+
       console.error('Failed to create page:', error)
       throw error
     }
@@ -1141,7 +1141,7 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
       // If the page doesn't exist on the server (404), just remove it locally
       if (error.message?.includes('404') || error.message?.includes('Not Found')) {
         console.log('⚠️ Page not found on server, removing locally')
-        
+
         // Remove from local pages anyway
         const index = currentPages.value.findIndex(p => p.id === pageId)
         if (index > -1) {
@@ -1159,11 +1159,11 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
             selectedButton.value = null
           }
         }
-        
+
         console.log('✅ Page removed locally (was not found on server)')
         return // Don't throw error for 404
       }
-      
+
       console.error('❌ Failed to delete page:', error)
       throw error
     }
@@ -1202,7 +1202,7 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
         console.warn('⚠️ Page not found on server, cannot update')
         return // Don't throw error for 404
       }
-      
+
       console.error('❌ Failed to update page:', error)
       throw error
     }
@@ -1404,7 +1404,7 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
       })
       return hasAction
     }
-    
+
     // Check current button config (for selected/unsaved buttons)
     if (selectedButton.value !== null && buttonConfig.value.actions) {
       const hasAction = buttonConfig.value.actions.some((action: any) => {
@@ -1425,7 +1425,7 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
       })
       return hasAction
     }
-    
+
     return false
   }
 
@@ -1448,7 +1448,7 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
         return false
       })
     }
-    
+
     // Check current button config (for selected/unsaved buttons)
     if (selectedButton.value !== null && buttonConfig.value.actions) {
       return buttonConfig.value.actions.find((action: any) => {
@@ -1467,7 +1467,7 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
         return false
       })
     }
-    
+
     return null
   }
 
@@ -1477,7 +1477,7 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
 
     try {
       console.log(`🔄 Updating dynamic action for button at position ${position}`)
-      
+
       const response = await apiRequest('/actions/execute', {
         method: 'POST',
         body: JSON.stringify({
@@ -1600,51 +1600,51 @@ const FRONTEND_URL = computed(() => getFrontendUrl())
     getButtonData,
     getButtonStyle,
 
-  // Functions
-  connectWebSocket,
-  loadProfiles,
-  loadProfile,
-  selectProfile,
-  loadButtons,
-  loadPlugins,
-  getButton,
-  selectButton,
-  executeButton,
-  deleteButton,
-  saveButtonConfig,
-  addAction,
-  removeAction,
-  reorderActions,
-  updateActionParameter,
-  createProfile,
-  updateProfile,
-  deleteProfile,
-  selectPage,
-  createPage,
-  deletePage,
-  updatePage,
-  changeGridSize,
-  handleSwap,
-  debouncedSave,
-  cleanup,
-  
-  // Dynamic button functions (generic for any plugin)
-  hasDynamicAction,
-  getDynamicAction,
-  updateDynamicButtonValue,
-  startDynamicUpdates,
-  stopDynamicUpdates,
-  stopDynamicUpdateForButton,
-  
-  // URLs
-  API_BASE,
-  WS_URL,
-  FRONTEND_URL,
-  
-  // Internal state for watchers
-  isChangingButton,
-  isSaving,
-  isSwapping,
-  saveTimeout
+    // Functions
+    connectWebSocket,
+    loadProfiles,
+    loadProfile,
+    selectProfile,
+    loadButtons,
+    loadPlugins,
+    getButton,
+    selectButton,
+    executeButton,
+    deleteButton,
+    saveButtonConfig,
+    addAction,
+    removeAction,
+    reorderActions,
+    updateActionParameter,
+    createProfile,
+    updateProfile,
+    deleteProfile,
+    selectPage,
+    createPage,
+    deletePage,
+    updatePage,
+    changeGridSize,
+    handleSwap,
+    debouncedSave,
+    cleanup,
+
+    // Dynamic button functions (generic for any plugin)
+    hasDynamicAction,
+    getDynamicAction,
+    updateDynamicButtonValue,
+    startDynamicUpdates,
+    stopDynamicUpdates,
+    stopDynamicUpdateForButton,
+
+    // URLs
+    API_BASE,
+    WS_URL,
+    FRONTEND_URL,
+
+    // Internal state for watchers
+    isChangingButton,
+    isSaving,
+    isSwapping,
+    saveTimeout
   }
 }
