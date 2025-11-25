@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/mikelgmh/libredeck/compare/v1.3.2...v1.4.0) (2025-11-25)
+
+
+### Features
+
+* auto update change ([5108e8a](https://github.com/mikelgmh/libredeck/commit/5108e8a729514d14c45cccaaf560845c8b3aa111))
+
 ## [1.3.2](https://github.com/mikelgmh/libredeck/compare/v1.3.1...v1.3.2) (2025-11-21)
 
 
