@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/mikelgmh/libredeck/compare/v1.4.0...v1.5.0) (2025-11-25)
+
+
+### Features
+
+* Default profile in prod ([cea9d12](https://github.com/mikelgmh/libredeck/commit/cea9d12e45736fff6b532e17f969e6db6edc3ee2))
+
 # [1.4.0](https://github.com/mikelgmh/libredeck/compare/v1.3.2...v1.4.0) (2025-11-25)
 
 
