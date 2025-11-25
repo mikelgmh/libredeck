@@ -101,7 +101,7 @@ jobs:
       run: |
         cd cli
         bun run build
-        mv libredeck-cli* ../libredeck-cli-v${{ steps.version.outputs.version }}-${{ matrix.target }}${{ matrix.ext }}
+        mv libredeck-cli${{ matrix.ext }} ../libredeck-cli-v${{ steps.version.outputs.version }}-${{ matrix.target }}${{ matrix.ext }}
 
     - name: Build Web
       run: |
@@ -115,7 +115,7 @@ jobs:
       run: |
         cd daemon
         bun run build
-        mv libredeck-daemon* ../libredeck-daemon-v${{ steps.version.outputs.version }}-${{ matrix.target }}${{ matrix.ext }}
+        mv libredeck-daemon${{ matrix.ext }} ../libredeck-daemon-v${{ steps.version.outputs.version }}-${{ matrix.target }}${{ matrix.ext }}
 
     - name: Setup Inno Setup (Windows only)
       if: matrix.installer == true

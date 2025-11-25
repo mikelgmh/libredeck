@@ -7,6 +7,10 @@ set -e
 
 echo "🚀 Building LibreDeck for production..."
 
+# Clean dist directory
+echo "🧹 Cleaning dist directory..."
+rm -rf dist/*
+
 # Create dist directory
 mkdir -p dist
 

@@ -18,7 +18,7 @@ const path = require('path');
 const fs = require('fs');
 
 const PORT = Number(process.argv.find(arg => arg.startsWith('--port='))?.split('=')[1]) || Number(process.env.PORT) || 3001;
-const WS_PORT = Number(process.env.WS_PORT) || 3003;
+const WS_PORT = Number(process.env.WS_PORT) || 3002;
 const FRONTEND_PORT = Number(process.argv.find(arg => arg.startsWith('--web-port='))?.split('=')[1]) || Number(process.env.FRONTEND_PORT) || 3002;
 const DEV_MODE = process.env.DEV_MODE === 'true';
 

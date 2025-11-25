@@ -200,10 +200,16 @@ const showUpdateModal = async () => {
 const getCurrentVersion = async () => {
   try {
     const daemonUrl = `http://${window.location.hostname}:3001/api/v1/version`
+    console.log('Getting current version from:', daemonUrl)
     const response = await fetch(daemonUrl)
+    console.log('Version response status:', response.status)
     if (response.ok) {
       const data = await response.json()
+      console.log('Current version data:', data)
       currentVersion.value = data.version
+    } else {
+      const errorText = await response.text()
+      console.error('Failed to get current version. Status:', response.status, 'Response:', errorText)
     }
   } catch (error) {
     console.error('Error getting current version:', error)
@@ -214,16 +220,22 @@ const checkForUpdates = async () => {
   isCheckingUpdate.value = true
   try {
     const daemonUrl = `http://${window.location.hostname}:3001/api/v1/version/check`
+    console.log('Checking for updates at:', daemonUrl)
     const response = await fetch(daemonUrl)
+    console.log('Response status:', response.status)
     if (response.ok) {
       const data = await response.json()
+      console.log('Update data received:', data)
       latestVersion.value = data.latestVersion
       updateInfo.value = data
       
-      // Show modal if there's a new version
-      if (data.hasUpdate) {
-        updateModal.value?.showModal()
-      }
+      // Don't show modal automatically - user can check manually
+      // if (data.hasUpdate) {
+      //   updateModal.value?.showModal()
+      // }
+    } else {
+      const errorText = await response.text()
+      console.error('Failed to check for updates. Status:', response.status, 'Response:', errorText)
     }
   } catch (error) {
     console.error('Error checking for updates:', error)

@@ -5,7 +5,7 @@ import { windowWatcher } from '../window-watcher';
 import { DatabaseService } from '../db';
 import { v4 as uuidv4 } from 'uuid';
 import { getSystemMetricsScript } from '../scripts/system-metrics.ps1';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { readdir } from 'fs/promises';
 import { createWriteStream, createReadStream } from 'fs';
 import { mkdir, rm, rename } from 'fs/promises';
@@ -731,8 +731,27 @@ export async function setupAPIRoutes(
     if (path === '/api/v1/version') {
       if (method === 'GET') {
         try {
-          // Read version from package.json
-          const packageJsonPath = join(__dirname, '..', '..', 'package.json');
+          // Read version from package.json - try multiple locations
+          let packageJsonPath;
+          const possiblePaths = [
+            join(dirname(process.execPath), 'package.json'), // same dir as exe
+            join(dirname(process.execPath), '..', 'package.json'), // parent dir
+            join(process.cwd(), 'package.json'), // current working dir
+            join(process.cwd(), '..', 'package.json') // parent of cwd
+          ];
+
+          for (const path of possiblePaths) {
+            try {
+              await Bun.file(path).stat();
+              packageJsonPath = path;
+              break;
+            } catch {}
+          }
+
+          if (!packageJsonPath) {
+            throw new Error(`package.json not found in any of: ${possiblePaths.join(', ')}`);
+          }
+
           const packageJson = await Bun.file(packageJsonPath).json();
           const currentVersion = packageJson.version || '0.1.0';
 
@@ -742,7 +761,7 @@ export async function setupAPIRoutes(
           });
         } catch (error) {
           console.error('Failed to read version:', error);
-          return jsonResponse({ error: 'Failed to read version' }, 500);
+          return errorResponse('Failed to read version', error);
         }
       }
     }
@@ -750,8 +769,27 @@ export async function setupAPIRoutes(
     if (path === '/api/v1/version/check') {
       if (method === 'GET') {
         try {
-          // Get current version
-          const packageJsonPath = join(__dirname, '..', '..', 'package.json');
+          // Get current version - try multiple locations
+          let packageJsonPath;
+          const possiblePaths = [
+            join(dirname(process.execPath), 'package.json'), // same dir as exe
+            join(dirname(process.execPath), '..', 'package.json'), // parent dir
+            join(process.cwd(), 'package.json'), // current working dir
+            join(process.cwd(), '..', 'package.json') // parent of cwd
+          ];
+
+          for (const path of possiblePaths) {
+            try {
+              await Bun.file(path).stat();
+              packageJsonPath = path;
+              break;
+            } catch {}
+          }
+
+          if (!packageJsonPath) {
+            throw new Error(`package.json not found in any of: ${possiblePaths.join(', ')}`);
+          }
+
           const packageJson = await Bun.file(packageJsonPath).json();
           const currentVersion = packageJson.version || '0.1.0';
 
@@ -763,7 +801,7 @@ export async function setupAPIRoutes(
           });
 
           if (!response.ok) {
-            return jsonResponse({ error: 'Failed to check for updates' }, 500);
+            return errorResponse('Failed to check for updates', `GitHub API returned ${response.status}: ${response.statusText}`);
           }
 
           const latestRelease = await response.json();
@@ -782,8 +820,22 @@ export async function setupAPIRoutes(
           });
         } catch (error) {
           console.error('Failed to check for updates:', error);
-          return jsonResponse({ error: 'Failed to check for updates' }, 500);
+          return errorResponse('Failed to check for updates', error);
         }
+      }
+    }
+
+    // Admin endpoints
+    if (path === '/api/v1/admin/shutdown') {
+      if (method === 'POST') {
+        console.log('Shutdown requested via API');
+        
+        // Graceful shutdown - wait longer to allow CLI to process response
+        setTimeout(() => {
+          process.exit(0);
+        }, 2000); // Increased delay to 2 seconds
+        
+        return jsonResponse({ success: true, message: 'Shutting down...' });
       }
     }
 
@@ -816,10 +868,7 @@ export async function setupAPIRoutes(
           });
         } catch (error) {
           console.error('Failed to start update:', error);
-          return jsonResponse({
-            success: false,
-            message: error instanceof Error ? error.message : 'Failed to start update'
-          }, 500);
+          return errorResponse('Failed to start update', error);
         }
       }
     }
@@ -829,10 +878,7 @@ export async function setupAPIRoutes(
 
   } catch (error) {
     console.error('API Error:', error);
-    return jsonResponse({
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    }, 500);
+    return errorResponse('Internal server error', error);
   }
 }
 
@@ -843,4 +889,17 @@ function jsonResponse(data: any, status: number = 200): Response {
       'Content-Type': 'application/json'
     }
   });
+}
+
+function errorResponse(message: string, error?: any, status: number = 500): Response {
+  const details = error ? {
+    message: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+    type: error?.constructor?.name || 'Unknown'
+  } : undefined;
+
+  return jsonResponse({
+    error: message,
+    details
+  }, status);
 }

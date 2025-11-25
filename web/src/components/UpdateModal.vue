@@ -40,7 +40,7 @@
               >
                 <component v-if="props.isUpdating" :is="getLucideIcon('loader')" class="spinning" />
                 <component v-else :is="getLucideIcon('download')" />
-                {{ props.isUpdating ? 'Actualizando...' : props.updateResult ? 'Actualización completada' : 'Actualizar Ahora' }}
+                {{ props.isUpdating ? 'Actualizando...' : props.updateResult ? 'Actualización completada' : 'Descargar actualización' }}
               </button>
 
               <button
@@ -76,7 +76,7 @@
               {{ props.updateResult.message }}
             </div>
             <div v-if="props.updateResult.success" class="restart-notice">
-              <p>La aplicación se reiniciará automáticamente en unos segundos...</p>
+              <p>La actualización se aplicará cuando reinicie la aplicación.</p>
             </div>
           </div>
         </div>

@@ -24,46 +24,30 @@ export async function updateDaemon(): Promise<{ success: boolean; message: strin
       throw new Error(`CLI not found at ${cliPath}`);
     }
 
-    // Run the update command
-    console.log('🚀 Executing update command...');
-    const proc = spawn({
-      cmd: [cliPath, 'update'],
-      cwd: daemonDir,
-      stdio: ['inherit', 'pipe', 'pipe']
-    });
-
-    // Capture output
-    let stdout = '';
-    let stderr = '';
-
-    const stdoutReader = new Response(proc.stdout).text();
-    const stderrReader = new Response(proc.stderr).text();
-
-    const [stdoutText, stderrText] = await Promise.all([stdoutReader, stderrReader]);
-
-    stdout = stdoutText;
-    stderr = stderrText;
-
-    const exitCode = await proc.exited;
-
-    console.log(`📄 CLI stdout: ${stdout}`);
-    if (stderr) {
-      console.log(`⚠️ CLI stderr: ${stderr}`);
-    }
-    console.log(`📊 CLI exit code: ${exitCode}`);
-
-    if (exitCode === 0) {
-      return {
-        success: true,
-        message: 'Daemon updated successfully.',
-        restartRequired: false // CLI handles restart
-      };
+    // Run the update command in background
+    console.log('🚀 Starting update command in background...');
+    let proc;
+    if (process.platform === 'win32') {
+      proc = spawn({
+        cmd: ['cmd', '/c', 'start', '/B', cliPath, 'update'],
+        cwd: daemonDir,
+        stdio: ['inherit', 'inherit', 'inherit']
+      });
     } else {
-      return {
-        success: false,
-        message: `Update command failed with exit code ${exitCode}: ${stderr}`
-      };
+      proc = spawn({
+        cmd: [cliPath, 'update'],
+        cwd: daemonDir,
+        stdio: ['inherit', 'inherit', 'inherit'],
+        detached: true
+      });
+      proc.unref();
     }
+
+    return {
+      success: true,
+      message: 'Update started in background. The daemon will restart automatically.',
+      restartRequired: false
+    };
 
   } catch (error) {
     console.error('❌ Update error:', error);

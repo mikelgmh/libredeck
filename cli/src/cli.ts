@@ -9,7 +9,7 @@ import { spawn, SpawnOptions } from 'bun';
 const program = new Command();
 
 // Configuración
-const API_BASE = 'http://localhost:3001/api/v1';
+const API_BASE = 'http://localhost:3001';
 const DAEMON_PATH = '../daemon';
 const DATA_PATH = '../data';
 
@@ -47,9 +47,12 @@ const runCommand = async (command: string, args: string[] = [], options: SpawnOp
 
 const isProcessRunning = async (port: number): Promise<boolean> => {
   try {
+    console.log(`Checking if daemon is running on port ${port}...`);
     const response = await fetch(`http://localhost:${port}/health`);
+    console.log(`Health check response status: ${response.status}`);
     return response.ok;
-  } catch {
+  } catch (error) {
+    console.log(`Health check failed: ${(error as Error).message}`);
     return false;
   }
 };
@@ -59,17 +62,23 @@ const getLatestDaemonExe = async (): Promise<string | null> => {
   const fs = await import('fs');
   const path = await import('path');
   const currentDir = path.dirname(process.execPath);
-  
+
+  console.log('Searching for daemon exe in dir:', currentDir);
+
   try {
     const files = fs.readdirSync(currentDir);
-    const daemonExes = files.filter(file => 
-      file.startsWith('libredeck-daemon') && 
-      file.endsWith('.exe') &&
+    console.log('All files in dir:', files);
+
+    const daemonExes = files.filter(file =>
+      file.startsWith('libredeck-daemon') &&
+      (file.endsWith('.exe') || !file.includes('.')) &&
       !file.includes('-backup') // Excluir backup
     );
-    
+
+    console.log('Filtered daemon exes:', daemonExes);
+
     if (daemonExes.length === 0) return null;
-    
+
     // Extraer versiones: preferir archivos con -vX.X.X-
     const versions = daemonExes.map(file => {
       const versionMatch = file.match(/libredeck-daemon-v([0-9]+\.[0-9]+\.[0-9]+)/);
@@ -79,12 +88,14 @@ const getLatestDaemonExe = async (): Promise<string | null> => {
       // Si no tiene versión, asignar versión baja
       return { file, version: '0.0.0', hasVersion: false };
     });
-    
+
+    console.log('Versions:', versions);
+
     // Ordenar: primero los con versión, luego por versión semver descendente
     versions.sort((a, b) => {
       if (a.hasVersion && !b.hasVersion) return -1;
       if (!a.hasVersion && b.hasVersion) return 1;
-      
+
       const aParts = a.version.split('.').map(Number);
       const bParts = b.version.split('.').map(Number);
       for (let i = 0; i < 3; i++) {
@@ -93,8 +104,11 @@ const getLatestDaemonExe = async (): Promise<string | null> => {
       }
       return 0;
     });
-    
-    return path.join(currentDir, versions[0].file);
+
+    const selected = versions[0];
+    console.log('Selected exe:', selected.file);
+
+    return path.join(currentDir, selected.file);
   } catch (error) {
     console.error('Error finding latest daemon exe:', error);
     return null;
@@ -139,12 +153,56 @@ program
 
       if (options.detach) {
         // Ejecutar en segundo plano
-        const proc = spawn({
-          cmd: [daemonExe],
-          env,
-          stdio: ['ignore', 'ignore', 'ignore'],
-          detached: true
-        });
+        let proc;
+        if (process.platform === 'win32') {
+          proc = spawn({
+            cmd: ['cmd', '/c', 'start', '/B', daemonExe],
+            env,
+            stdio: ['ignore', 'ignore', 'ignore'],
+            cwd: process.cwd()
+          });
+        } else {
+          proc = spawn({
+            cmd: [daemonExe],
+            env,
+            stdio: ['ignore', 'ignore', 'ignore'],
+            detached: true
+          });
+          proc.unref();
+        }
+
+        // Esperar un poco para verificar que inició correctamente
+        console.log('Waiting for daemon to start...');
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Increased from 2000 to 5000ms
+
+        console.log('Checking if daemon started successfully...');
+        const isNowRunning = await isProcessRunning(parseInt(options.port));
+        if (isNowRunning) {
+          spinner.succeed(`LibreDeck daemon iniciado en http://localhost:${options.port}`);
+        } else {
+          spinner.fail('Error al iniciar el daemon - no responde al health check');
+          console.log('El daemon puede estar ejecutándose pero no responde correctamente.');
+          console.log('Intenta ejecutar: ./dist/libredeck-daemon.exe directamente para ver los logs.');
+        }
+      } else {
+        // Ejecutar en "primer plano" (pero realmente detached para permitir updates)
+        let proc;
+        if (process.platform === 'win32') {
+          proc = spawn({
+            cmd: ['cmd', '/c', 'start', '/B', daemonExe],
+            env,
+            stdio: ['ignore', 'ignore', 'ignore'],
+            cwd: process.cwd()
+          });
+        } else {
+          proc = spawn({
+            cmd: [daemonExe],
+            env,
+            stdio: ['ignore', 'ignore', 'ignore'],
+            detached: true
+          });
+          proc.unref();
+        }
 
         // Esperar un poco para verificar que inició correctamente
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -152,17 +210,11 @@ program
         const isNowRunning = await isProcessRunning(parseInt(options.port));
         if (isNowRunning) {
           spinner.succeed(`LibreDeck daemon iniciado en http://localhost:${options.port}`);
+          console.log(chalk.gray('El daemon está ejecutándose en segundo plano.'));
         } else {
           spinner.fail('Error al iniciar el daemon');
+          process.exit(1);
         }
-      } else {
-        // Ejecutar en primer plano
-        spinner.succeed('Daemon iniciado');
-        console.log(chalk.blue(`🚀 Iniciando LibreDeck en http://localhost:${options.port}`));
-
-        await runCommand(daemonExe, [], {
-          env
-        });
       }
     } catch (error) {
       spinner.fail(`Error al iniciar daemon: ${error}`);
@@ -182,15 +234,19 @@ program
       await apiRequest('/admin/shutdown', { method: 'POST' });
       spinner.succeed('Daemon detenido correctamente');
     } catch (error) {
+      console.log('API shutdown failed, trying process kill...');
       // Si no funciona la API, buscar y matar el proceso
       try {
         if (process.platform === 'win32') {
-          await runCommand('taskkill', ['/F', '/IM', 'bun.exe']);
+          // Buscar procesos libredeck-daemon.exe
+          await runCommand('taskkill', ['/F', '/IM', 'libredeck-daemon.exe']);
+          await runCommand('taskkill', ['/F', '/IM', 'libredeck-daemon*.exe']); // También versiones con números
         } else {
-          await runCommand('pkill', ['-f', 'libredeck']);
+          await runCommand('pkill', ['-f', 'libredeck-daemon']);
         }
-        spinner.succeed('Daemon detenido');
-      } catch {
+        spinner.succeed('Daemon detenido por fuerza');
+      } catch (killError) {
+        console.log('Process kill failed:', killError);
         spinner.fail('No se pudo detener el daemon');
       }
     }
@@ -209,7 +265,7 @@ program
 
       console.log(chalk.green('✓ Estado: Online'));
       console.log(chalk.blue(`📡 API: http://localhost:3001`));
-      console.log(chalk.blue(`🔌 WebSocket: ws://localhost:3003`));
+      console.log(chalk.blue(`🔌 WebSocket: ws://localhost:3002`));
       console.log(chalk.gray(`🕒 Uptime: ${new Date(health.timestamp).toLocaleString()}`));
 
       if (health.websocket) {
@@ -402,14 +458,24 @@ program
         // Find assets for daemon on current platform
         const platform = process.platform;
         const arch = process.arch;
-        const assetName = platform === 'win32' ? `libredeck-daemon-windows-${arch}.exe` :
-          platform === 'darwin' ? `libredeck-daemon-darwin-${arch}` :
-            `libredeck-daemon-linux-${arch}`;
+        const platformName = platform === 'win32' ? 'windows' : platform === 'darwin' ? 'darwin' : 'linux';
+        const assetExt = platform === 'win32' ? '.exe' : '';
 
-        const asset = release.assets.find((a: any) => a.name === assetName);
+        console.log(`Current version: ${currentVersion}, Latest version: ${latestVersion}`);
+        console.log(`Platform: ${process.platform}, Arch: ${process.arch}`);
+        console.log('Available assets:', release.assets.map((a: any) => a.name));
+
+        const asset = release.assets.find((a: any) => {
+          const isDaemon = a.name.includes('libredeck-daemon');
+          const isX64 = a.name.includes('x64');
+          const hasExe = a.name.endsWith('.exe');
+          return isDaemon && isX64 && hasExe;
+        });
+
+        console.log('Found asset:', asset ? asset.name : 'NONE');
 
         if (!asset) {
-          throw new Error(`No daemon asset found for ${platform}-${arch}`);
+          throw new Error(`No daemon asset found for ${platformName}-${arch}`);
         }
 
         // Download to a versioned file
@@ -419,71 +485,26 @@ program
         const fs = await import('fs');
         const path = await import('path');
         const currentDir = path.dirname(process.execPath);
-        const newDaemonPath = path.join(currentDir, `libredeck-daemon-v${latestVersion}.exe`);
+
+        // Extract version from asset name (e.g., libredeck-daemon-v1.3.0-windows-x64.exe -> v1.3.0)
+        const versionMatch = asset.name.match(/libredeck-daemon-v([0-9]+\.[0-9]+\.[0-9]+)/);
+        const assetVersion = versionMatch ? versionMatch[1] : latestVersion;
+
+        const newDaemonPath = path.join(currentDir, `libredeck-daemon-v${assetVersion}${assetExt}`);
 
         // Write new daemon executable
         fs.writeFileSync(newDaemonPath, Buffer.from(buffer));
 
         spinner.succeed(`Downloaded daemon v${latestVersion}!`);
 
-        // Stop the current daemon
-        spinner.text = 'Stopping current daemon...';
-        try {
-          await apiRequest('/admin/shutdown', { method: 'POST' });
-          // Wait a bit for shutdown
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        } catch (error) {
-          // Try to kill process
-          if (process.platform === 'win32') {
-            await runCommand('taskkill', ['/F', '/IM', 'libredeck-daemon*.exe']);
-          } else {
-            await runCommand('pkill', ['-f', 'libredeck']);
-          }
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-
-        // Remove old daemon executables (except the new one)
-        spinner.text = 'Cleaning up old executables...';
-        const files = fs.readdirSync(currentDir);
-        const oldDaemonExes = files.filter(file => 
-          file.startsWith('libredeck-daemon') && 
-          file.endsWith('.exe') && 
-          file !== `libredeck-daemon-v${latestVersion}.exe`
-        );
-
-        for (const oldExe of oldDaemonExes) {
-          try {
-            fs.unlinkSync(path.join(currentDir, oldExe));
-            console.log(chalk.gray(`Removed old executable: ${oldExe}`));
-          } catch (error) {
-            console.warn(chalk.yellow(`Could not remove ${oldExe}: ${error}`));
-          }
-        }
-
-        // Start the new daemon
-        spinner.text = 'Starting updated daemon...';
-        const proc = spawn({
-          cmd: [newDaemonPath],
-          cwd: currentDir,
-          stdio: ['ignore', 'ignore', 'ignore'],
-          detached: true,
-          env: process.env
-        });
-
-        // Wait a bit and check if it's running
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        const isRunning = await isProcessRunning(3001);
-
-        if (isRunning) {
-          spinner.succeed(`Daemon updated to v${latestVersion} and restarted successfully!`);
-        } else {
-          spinner.warn(`Daemon updated to v${latestVersion}, but may need manual restart.`);
-        }
+        // The update will be applied on next restart
+        spinner.succeed(`Daemon updated to v${latestVersion}! The update will be applied when you restart the application.`);
       } else {
         spinner.succeed('LibreDeck is up to date');
       }
     } catch (error) {
       spinner.fail(`Update failed: ${error}`);
+      process.exit(1);
     }
   });
 
