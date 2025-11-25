@@ -49,6 +49,28 @@
       </div>
       <div class="flex items-center gap-2">
         <select 
+          v-model="selectedStreamDeck" 
+          @change="handleStreamDeckChange" 
+          class="select select-bordered select-sm"
+          :title="t('toolbar.streamDeck')"
+          data-cy="streamdeck-selector"
+        >
+          <option value="">{{ t('toolbar.selectStreamDeck') }}</option>
+          <option v-for="device in streamDeckDevices" :key="device.path" :value="device.path">
+            {{ device.model }} ({{ device.path }})
+          </option>
+        </select>
+        
+        <button 
+          @click="testStreamDeck"
+          class="btn btn-ghost btn-sm btn-square"
+          :title="'Test StreamDeck Colors'"
+          :disabled="!selectedStreamDeck"
+        >
+          🎨
+        </button>
+        
+        <select 
           :value="currentLocale" 
           @change="handleLanguageChange" 
           class="select select-bordered select-sm"
@@ -114,6 +136,8 @@ interface Emits {
   (e: 'language-changed', locale: string): void
   (e: 'mode-changed', mode: 'edit' | 'deck'): void
   (e: 'check-updates'): void
+  (e: 'streamdeck-connected'): void
+  (e: 'streamdeck-disconnected'): void
 }
 
 const props = defineProps<Props>()
@@ -121,10 +145,98 @@ const emit = defineEmits<Emits>()
 
 const isFullscreen = ref(false)
 const isIPhone = ref(false)
+const streamDeckDevices = ref<any[]>([])
+const selectedStreamDeck = ref('')
 
-const handleLanguageChange = (event: Event) => {
+// Get dynamic base URLs based on current host
+const config = ref({ wsPort: 3002, apiPort: 3001, frontendPort: 4321 });
+
+const loadConfig = async () => {
+  try {
+    // En modo dev, hacer fetch al daemon directamente
+    const configUrl = typeof window !== 'undefined' && window.location.port !== '3001'
+      ? 'http://localhost:3001/config'
+      : '/config';
+    const res = await fetch(configUrl);
+    const data = await res.json();
+    config.value = data;
+    console.log('🔧 Loaded config:', config.value);
+  } catch (e) {
+    console.error('Failed to load config', e);
+  }
+};
+
+const getApiBase = () => {
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol
+    const hostname = window.location.hostname
+    return `${protocol}//${hostname}:${config.value.apiPort}/api/v1`
+  }
+  return 'http://localhost:3001/api/v1'
+}
+
+const handleProfileChange = (event: Event) => {
   const target = event.target as HTMLSelectElement
-  emit('language-changed', target.value)
+  emit('profile-changed', target.value)
+}
+
+const handleStreamDeckChange = async (event: Event) => {
+  const target = event.target as HTMLSelectElement
+  const devicePath = target.value
+
+  if (devicePath) {
+    try {
+      const response = await fetch(`${getApiBase()}/devices/streamdeck/connect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ devicePath })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        console.log('✅ Connected to StreamDeck:', result.connectedDevice)
+        selectedStreamDeck.value = devicePath
+        console.log('📡 Emitting streamdeck-connected event...')
+        emit('streamdeck-connected')
+      } else {
+        console.error('❌ Failed to connect to StreamDeck')
+        selectedStreamDeck.value = ''
+      }
+    } catch (error) {
+      console.error('Error connecting to StreamDeck:', error)
+      selectedStreamDeck.value = ''
+    }
+  } else {
+    // Disconnect
+    try {
+      await fetch(`${getApiBase()}/devices/streamdeck/disconnect`, {
+        method: 'POST'
+      })
+      console.log('Disconnected from StreamDeck')
+      selectedStreamDeck.value = ''
+      emit('streamdeck-disconnected')
+    } catch (error) {
+      console.error('Error disconnecting from StreamDeck:', error)
+    }
+  }
+}
+
+const testStreamDeck = async () => {
+  try {
+    console.log('🧪 Testing StreamDeck colors...')
+    const response = await fetch(`${getApiBase()}/devices/streamdeck/test`, {
+      method: 'POST'
+    })
+    if (response.ok) {
+      console.log('✅ StreamDeck test completed')
+    } else {
+      console.error('❌ StreamDeck test failed')
+    }
+  } catch (error) {
+    console.error('❌ Error testing StreamDeck:', error)
+  }
 }
 
 const toggleFullscreen = async () => {
@@ -149,6 +261,11 @@ onMounted(() => {
   isIPhone.value = /iphone/.test(userAgent)
   
   document.addEventListener('fullscreenchange', handleFullscreenChange)
+
+  // Load config and then StreamDeck devices
+  loadConfig().then(() => {
+    loadStreamDeckDevices()
+  })
 })
 
 onUnmounted(() => {

@@ -45,6 +45,8 @@
           @language-changed="switchLanguage"
           @mode-changed="appStore.setMode"
           @check-updates="showUpdateModal"
+          @streamdeck-connected="handleStreamDeckConnected"
+          @streamdeck-disconnected="handleStreamDeckDisconnected"
         />
 
         <!-- StreamDeck Grid -->
@@ -368,6 +370,7 @@ const {
   handleSwap,
   debouncedSave,
   cleanup,
+  updateStreamDeckButtons,
   
   // Internal state for watchers
   isChangingButton,
@@ -433,6 +436,15 @@ const handlePageRenamed = async (pageId: string, newName: string) => {
     // Show user-friendly error message
     alert('Error al renombrar la página. Inténtalo de nuevo.')
   }
+}
+
+const handleStreamDeckConnected = () => {
+  console.log('🎛️ StreamDeck connected event received, calling updateStreamDeckButtons...')
+  updateStreamDeckButtons()
+}
+
+const handleStreamDeckDisconnected = () => {
+  console.log('StreamDeck disconnected')
 }
 
 // Estas funciones actualizan buttonConfig directamente, lo que dispara el watch

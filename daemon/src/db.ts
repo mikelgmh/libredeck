@@ -142,7 +142,9 @@ export async function initDatabase() {
     { key: 'app.version', value: '0.1.0' },
     { key: 'api.port', value: '3001' },
     { key: 'ws.port', value: '3002' },
-    { key: 'security.cors_origins', value: 'http://localhost:4321,http://127.0.0.1:4321' }
+    { key: 'security.cors_origins', value: 'http://localhost:4321,http://127.0.0.1:4321' },
+    { key: 'current.profile_id', value: '' },
+    { key: 'current.page_id', value: '' }
   ];
 
   const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
@@ -517,5 +519,35 @@ export class DatabaseService {
   getAsset(id: string): Asset | null {
     const stmt = this.db.prepare('SELECT * FROM assets WHERE id = ?');
     return stmt.get(id) as Asset || null;
+  }
+
+  // Current profile and page management
+  getCurrentProfile(): Profile | null {
+    const profileId = this.getSetting('current.profile_id');
+    if (!profileId) return null;
+    return this.getProfile(profileId);
+  }
+
+  setCurrentProfile(profileId: string): void {
+    this.setSetting('current.profile_id', profileId);
+  }
+
+  getCurrentPage(profileId?: string): Page | null {
+    const currentProfileId = profileId || this.getSetting('current.profile_id');
+    if (!currentProfileId) return null;
+
+    const pageId = this.getSetting('current.page_id');
+    if (!pageId) return null;
+
+    const page = this.getPage(pageId);
+    // Verify the page belongs to the current profile
+    if (page && page.profile_id === currentProfileId) {
+      return page;
+    }
+    return null;
+  }
+
+  setCurrentPage(pageId: string): void {
+    this.setSetting('current.page_id', pageId);
   }
 }

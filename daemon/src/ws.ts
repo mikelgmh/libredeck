@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
-import { DatabaseService } from './db';
+import { streamDeckDriver } from './hw-driver/streamdeck-driver';
 import { windowWatcher } from './window-watcher';
+import { DatabaseService } from './db';
 
 export interface WebSocketMessage {
   type: string;
@@ -108,6 +109,15 @@ export class WebSocketManager {
       case 'page.select':
         const { pageId } = message.payload;
         console.log('📨 Received page.select:', { pageId, clientId })
+        
+        // Update current page in database
+        this.db.setCurrentPage(pageId);
+        
+        // Update StreamDeck display for the new page
+        streamDeckDriver.updateFromPage(pageId).catch(error => {
+          console.error('Failed to update StreamDeck display:', error);
+        });
+        
         // Broadcast to all other subscribed clients (exclude sender)
         this.clients.forEach((otherClient, otherClientId) => {
           if (otherClientId !== clientId && otherClient.subscriptions.has('pages')) {
@@ -123,7 +133,8 @@ export class WebSocketManager {
 
       case 'profile.select':
         const { profileId } = message.payload;
-        // Update current profile in window watcher
+        // Update current profile in database and window watcher
+        this.db.setCurrentProfile(profileId);
         windowWatcher.setCurrentProfile(profileId);
         // Broadcast to all other subscribed clients (exclude sender)
         this.clients.forEach((otherClient, otherClientId) => {

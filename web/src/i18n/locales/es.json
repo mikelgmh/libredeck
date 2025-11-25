@@ -10,7 +10,9 @@
         "edit": "Editar",
         "deck": "Deck",
         "editMode": "Modo edición",
-        "deckMode": "Modo deck"
+        "deckMode": "Modo deck",
+        "streamDeck": "StreamDeck",
+        "selectStreamDeck": "Seleccionar StreamDeck..."
     },
     "sidebar": {
         "button": "Botón",

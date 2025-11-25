@@ -298,6 +298,21 @@ export function useStreamDeck() {
         try {
           if (message.payload.pageId) {
             await selectPage(message.payload.pageId)
+            // Save remote page change to database settings for StreamDeck integration
+            try {
+              await apiRequest('/settings', {
+                method: 'POST',
+                body: JSON.stringify({
+                  key: 'current.page_id',
+                  value: message.payload.pageId
+                })
+              })
+              console.log('✅ Remote page change saved to database settings:', message.payload.pageId)
+            } catch (error) {
+              console.error('❌ Failed to save remote page change to database settings:', error)
+            }
+            // Update StreamDeck after remote page change
+            await updateStreamDeckButtons()
           }
           console.log('✅ Page navigation completed')
         } catch (error) {
@@ -312,6 +327,19 @@ export function useStreamDeck() {
         if (message.payload.profileId) {
           selectedProfile.value = message.payload.profileId
           await loadProfile()
+          // Save remote profile change to database settings for StreamDeck integration
+          try {
+            await apiRequest('/settings', {
+              method: 'POST',
+              body: JSON.stringify({
+                key: 'current.profile_id',
+                value: message.payload.profileId
+              })
+            })
+            console.log('✅ Remote profile change saved to database settings:', message.payload.profileId)
+          } catch (error) {
+            console.error('❌ Failed to save remote profile change to database settings:', error)
+          }
         }
         isRemoteProfileChange.value = false
         break
@@ -383,8 +411,24 @@ export function useStreamDeck() {
         console.log('Marked first profile as default:', firstProfile.id)
       }
 
-      // Try to restore saved profile first
-      const savedProfileId = getSelectedProfile()
+      // Try to restore saved profile first from database settings, then localStorage
+      let savedProfileId = null;
+      try {
+        const settingsResponse = await apiRequest('/settings?key=current.profile_id');
+        savedProfileId = settingsResponse.value;
+        console.log('📂 Loaded profile from database settings:', savedProfileId);
+        
+        // Handle the case where "null" was saved as a string
+        if (savedProfileId === 'null' || savedProfileId === null || savedProfileId === '') {
+          savedProfileId = null;
+          console.log('⚠️ Invalid profile_id found in settings, ignoring...');
+        }
+      } catch (error) {
+        console.log('⚠️ Could not load profile from database settings, trying localStorage...');
+        savedProfileId = getSelectedProfile();
+        console.log('📂 Loaded profile from localStorage:', savedProfileId);
+      }
+
       if (savedProfileId && profiles.value.find(p => p.id === savedProfileId)) {
         selectedProfile.value = savedProfileId
       } else if (profiles.value.length > 0) {
@@ -396,6 +440,12 @@ export function useStreamDeck() {
       // Load the selected profile
       if (selectedProfile.value) {
         await loadProfile()
+        
+        // After loading profile and page, update StreamDeck if connected
+        console.log('🔌 Profile loaded, checking if we need to update StreamDeck...');
+        setTimeout(async () => {
+          await updateStreamDeckButtons();
+        }, 1000); // Small delay to ensure everything is loaded
       }
 
       // Load plugins
@@ -454,10 +504,31 @@ export function useStreamDeck() {
       const pages = await apiRequest(`/pages?profileId=${selectedProfile.value}`)
       currentPages.value = pages
 
-      // Load first non-folder page as current page, or first page if no non-folder pages exist
-      const firstPage = pages.find(p => p.is_folder === 0) || pages[0]
-      if (firstPage) {
-        currentPage.value = firstPage
+      // Try to load saved page from database settings, fallback to first non-folder page
+      let targetPage = null;
+      try {
+        const pageSettingsResponse = await apiRequest('/settings?key=current.page_id');
+        const savedPageId = pageSettingsResponse.value;
+        
+        // Handle the case where invalid values were saved
+        if (savedPageId && savedPageId !== 'null' && savedPageId !== null && savedPageId !== '') {
+          targetPage = pages.find(p => p.id === savedPageId && p.is_folder === 0);
+          console.log('📄 Loaded saved page from database settings:', savedPageId, targetPage ? 'found' : 'not found');
+        } else {
+          console.log('⚠️ Invalid or missing page_id in settings');
+        }
+      } catch (error) {
+        console.log('⚠️ Could not load page from database settings');
+      }
+
+      // If no saved page or saved page not found, use first non-folder page
+      if (!targetPage) {
+        targetPage = pages.find(p => p.is_folder === 0) || pages[0];
+        console.log('📄 Using fallback page:', targetPage?.name);
+      }
+
+      if (targetPage) {
+        currentPage.value = targetPage
         await loadButtons()
 
         // Start dynamic updates for PC Vitals buttons
@@ -585,6 +656,9 @@ export function useStreamDeck() {
 
     // Restart dynamic updates to include/exclude the newly selected button
     await startDynamicUpdates()
+
+    // Update StreamDeck buttons to reflect the current state
+    await updateStreamDeckButtons()
   }
 
   const executeButton = async (position: number) => {
@@ -877,6 +951,23 @@ export function useStreamDeck() {
     selectedProfile.value = profileId
     await loadProfile()
 
+    // Save selected profile to localStorage
+    saveSelectedProfile(selectedProfile.value)
+
+    // Save selected profile to database settings for StreamDeck integration
+    try {
+      await apiRequest('/settings', {
+        method: 'POST',
+        body: JSON.stringify({
+          key: 'current.profile_id',
+          value: profileId
+        })
+      })
+      console.log('✅ Profile saved to database settings:', profileId)
+    } catch (error) {
+      console.error('❌ Failed to save profile to database settings:', error)
+    }
+
     // Broadcast profile change to other devices (only for local changes)
     if (!isRemoteProfileChange.value) {
       ws?.send(JSON.stringify({
@@ -884,6 +975,9 @@ export function useStreamDeck() {
         payload: { profileId }
       }))
     }
+
+    // Force update StreamDeck after profile change
+    await updateStreamDeckButtons()
   }
   const createProfile = async (name: string) => {
     try {
@@ -1061,6 +1155,24 @@ export function useStreamDeck() {
 
     // Start dynamic updates for PC Vitals buttons
     await startDynamicUpdates()
+
+    // Save current page to database settings for StreamDeck integration
+    try {
+      await apiRequest('/settings', {
+        method: 'POST',
+        body: JSON.stringify({
+          key: 'current.page_id',
+          value: pageId
+        })
+      })
+      console.log('✅ Page saved to database settings:', pageId)
+    } catch (error) {
+      console.error('❌ Failed to save page to database settings:', error)
+    }
+
+    // Update StreamDeck buttons to reflect the current page
+    console.log('📄 Page changed, calling updateStreamDeckButtons...');
+    await updateStreamDeckButtons()
 
     // Broadcast page change to other devices (only for local changes)
     if (!isRemotePageChange.value) {
@@ -1579,6 +1691,84 @@ export function useStreamDeck() {
     }
   }
 
+  const testStreamDeck = async () => {
+    try {
+      console.log('🧪 Testing StreamDeck colors...');
+      await apiRequest('/devices/streamdeck/test', {
+        method: 'POST'
+      });
+      console.log('✅ StreamDeck test completed');
+    } catch (error) {
+      console.error('❌ Failed to test StreamDeck:', error);
+    }
+  }
+
+  const updateStreamDeckButtons = async () => {
+    try {
+      console.log('🎛️ updateStreamDeckButtons called - checking if StreamDeck is connected...');
+      
+      // Verificar si hay un StreamDeck conectado primero
+      const statusResponse = await fetch(`${API_BASE.value}/devices/streamdeck/status`);
+      const status = await statusResponse.json();
+      
+      if (!status.isConnected) {
+        console.log('🎛️ StreamDeck not connected, skipping update');
+        return;
+      }
+      
+      console.log('🎛️ StreamDeck is connected, proceeding with update...');
+
+      // Calcular qué posiciones tienen botones configurados
+      const buttonStates = [];
+      const totalButtons = gridCols.value * gridRows.value;
+
+      console.log(`🎛️ Calculating button states for ${totalButtons} positions (${gridCols.value}x${gridRows.value})`);
+      console.log(`📊 Current buttons in page:`, currentButtons.value.length);
+
+      for (let i = 0; i < totalButtons; i++) {
+        const button = getButton(i);
+        let hasContent = false;
+
+        if (button && button.data) {
+          hasContent = !!(
+            button.data.label?.trim() ||
+            button.data.textTop?.trim() ||
+            button.data.textBottom?.trim() ||
+            button.data.emoji?.trim() ||
+            button.data.icon ||
+            (button.data.actions && button.data.actions.length > 0)
+          );
+
+          console.log(`Button ${i}: exists=${!!button}, hasContent=${hasContent}`, {
+            label: button.data.label,
+            textTop: button.data.textTop,
+            textBottom: button.data.textBottom,
+            emoji: button.data.emoji,
+            icon: button.data.icon,
+            actionsCount: button.data.actions?.length || 0
+          });
+        } else {
+          console.log(`Button ${i}: no button data`);
+        }
+
+        buttonStates.push(hasContent);
+      }
+
+      console.log('🎛️ Final button states for StreamDeck:', buttonStates);
+
+      // Enviar al daemon
+      console.log('🎛️ Sending button states to daemon...');
+      await apiRequest('/devices/streamdeck/update-buttons', {
+        method: 'POST',
+        body: JSON.stringify({ buttonStates })
+      });
+
+      console.log('✅ StreamDeck buttons updated successfully');
+    } catch (error) {
+      console.error('❌ Failed to update StreamDeck buttons:', error);
+    }
+  }
+
   return {
     // State
     connectionStatus,
@@ -1627,6 +1817,8 @@ export function useStreamDeck() {
     handleSwap,
     debouncedSave,
     cleanup,
+    updateStreamDeckButtons,
+    testStreamDeck,
 
     // Dynamic button functions (generic for any plugin)
     hasDynamicAction,

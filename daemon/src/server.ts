@@ -5,6 +5,7 @@ import { ActionRunner } from './action-runner';
 import { windowWatcher } from './window-watcher';
 import { DatabaseService } from './db';
 import { setupAPIRoutes } from './api/routes';
+import { streamDeckDriver } from './hw-driver/streamdeck-driver';
 
 // Import opcional del tray (solo funciona en Windows)
 let Tray: any = null;
@@ -48,6 +49,9 @@ class LibreDeckDaemon {
       // Cargar plugins
       await this.pluginLoader.loadAllPlugins();
 
+      // Inicializar StreamDeck driver
+      await this.initializeStreamDeck();
+
       // Configurar WebSocket
       this.wsManager = new WebSocketManager(WS_PORT);
 
@@ -72,9 +76,11 @@ class LibreDeckDaemon {
       if (autoProfileConfig) {
         const config = JSON.parse(autoProfileConfig);
         if (config.enabled && config.rules && config.rules.length > 0) {
-          // Connect window watcher events to WebSocket
+          // Connect window watcher events to WebSocket for profile switching
           windowWatcher.on('profile-switch', (profileId: string, window: any) => {
-            // Update current profile in window watcher
+            // Update current profile in database and window watcher
+            const db = new DatabaseService();
+            db.setCurrentProfile(profileId);
             windowWatcher.setCurrentProfile(profileId);
             this.wsManager?.broadcast('profile.navigate', { profileId }, 'profiles');
           });
@@ -84,6 +90,20 @@ class LibreDeckDaemon {
       }
     } catch (error) {
       console.error('❌ Failed to initialize auto-profile switching:', error);
+    }
+  }
+
+  private async initializeStreamDeck() {
+    try {
+      // Intentar conectar automáticamente al primer StreamDeck disponible
+      const connected = await streamDeckDriver.connect();
+      if (connected) {
+        console.log('✓ StreamDeck driver initialized');
+      } else {
+        console.log('ℹ️ No StreamDeck devices found');
+      }
+    } catch (error) {
+      console.error('❌ Failed to initialize StreamDeck driver:', error);
     }
   }
 

@@ -11,6 +11,8 @@ import { createWriteStream, createReadStream } from 'fs';
 import { mkdir, rm, rename } from 'fs/promises';
 import { pipeline } from 'stream/promises';
 import { spawn } from 'child_process';
+import { listStreamDecks } from '@elgato-stream-deck/node';
+import { streamDeckDriver } from '../hw-driver/streamdeck-driver';
 
 interface APIServices {
   wsManager: WebSocketManager;
@@ -207,6 +209,15 @@ export async function setupAPIRoutes(
         db.createButton(button);
         services.wsManager.broadcast('button.created', { buttonId: button.id, button }, 'buttons');
 
+        // Update StreamDeck display if connected
+        if (streamDeckDriver.isConnected()) {
+          try {
+            await streamDeckDriver.updateFromPage(button.page_id);
+          } catch (error) {
+            console.error('Failed to update StreamDeck after button creation:', error);
+          }
+        }
+
         return jsonResponse(button, 201);
       }
     }
@@ -238,6 +249,15 @@ export async function setupAPIRoutes(
         const updatedButton = db.getButton(buttonId);
         services.wsManager.broadcastButtonUpdate(buttonId, updatedButton);
 
+        // Update StreamDeck display if connected
+        if (streamDeckDriver.isConnected() && updatedButton) {
+          try {
+            await streamDeckDriver.updateFromPage(updatedButton.page_id);
+          } catch (error) {
+            console.error('Failed to update StreamDeck after button update:', error);
+          }
+        }
+
         return jsonResponse(updatedButton);
       }
 
@@ -247,8 +267,18 @@ export async function setupAPIRoutes(
           return jsonResponse({ error: 'Button not found' }, 404);
         }
 
+        const pageId = button.page_id;
         db.deleteButton(buttonId);
         services.wsManager.broadcastButtonDeleted(buttonId);
+
+        // Update StreamDeck display if connected
+        if (streamDeckDriver.isConnected()) {
+          try {
+            await streamDeckDriver.updateFromPage(pageId);
+          } catch (error) {
+            console.error('Failed to update StreamDeck after button deletion:', error);
+          }
+        }
 
         return jsonResponse({ success: true });
       }
@@ -619,7 +649,8 @@ export async function setupAPIRoutes(
 
           // Connect window watcher events to WebSocket for profile switching
           services.windowWatcher.on('profile-switch', (profileId: string, window: any) => {
-            // Update current profile in window watcher
+            // Update current profile in database and window watcher
+            db.setCurrentProfile(profileId);
             services.windowWatcher.setCurrentProfile(profileId);
             services.wsManager?.broadcast('profile.navigate', { profileId }, 'profiles');
           });
@@ -881,6 +912,107 @@ export async function setupAPIRoutes(
         } catch (error) {
           console.error('Failed to start update:', error);
           return errorResponse('Failed to start update', error);
+        }
+      }
+    }
+
+    // StreamDeck devices endpoints
+    if (path === '/api/v1/devices/streamdeck') {
+      if (method === 'GET') {
+        try {
+          const devices = await listStreamDecks();
+          return jsonResponse(devices);
+        } catch (error) {
+          console.error('Failed to list StreamDeck devices:', error);
+          return jsonResponse({ error: 'Failed to list StreamDeck devices' }, 500);
+        }
+      }
+    }
+
+    if (path === '/api/v1/devices/streamdeck/connect') {
+      if (method === 'POST') {
+        try {
+          const body = await req.json();
+          const { devicePath } = body;
+
+          const success = await streamDeckDriver.connect(devicePath);
+          
+          if (success) {
+            console.log('🎛️ StreamDeck connected successfully, checking for current page...');
+            
+            // Update with current page if available (initializeButtons is already called in connect())
+            const currentProfile = db.getCurrentProfile();
+            console.log('🎛️ Current profile:', currentProfile);
+            
+            if (currentProfile) {
+              const currentPage = db.getCurrentPage(currentProfile.id);
+              console.log('🎛️ Current page:', currentPage);
+              
+              if (currentPage) {
+                console.log('🎛️ Updating StreamDeck with current page:', currentPage.id);
+                await streamDeckDriver.updateFromPage(currentPage.id);
+              } else {
+                console.log('🎛️ No current page found');
+              }
+            } else {
+              console.log('🎛️ No current profile found');
+            }
+          }
+          
+          return jsonResponse({ success, connectedDevice: streamDeckDriver.getConnectedDevice() });
+        } catch (error) {
+          console.error('Failed to connect to StreamDeck:', error);
+          return jsonResponse({ error: 'Failed to connect to StreamDeck' }, 500);
+        }
+      }
+    }
+
+    if (path === '/api/v1/devices/streamdeck/disconnect') {
+      if (method === 'POST') {
+        try {
+          await streamDeckDriver.disconnect();
+          return jsonResponse({ success: true });
+        } catch (error) {
+          console.error('Failed to disconnect StreamDeck:', error);
+          return jsonResponse({ error: 'Failed to disconnect StreamDeck' }, 500);
+        }
+      }
+    }
+
+    if (path === '/api/v1/devices/streamdeck/status') {
+      if (method === 'GET') {
+        return jsonResponse({
+          isConnected: streamDeckDriver.isConnected(),
+          connectedDevice: streamDeckDriver.getConnectedDevice()
+        });
+      }
+    }
+
+    if (path === '/api/v1/devices/streamdeck/test') {
+      if (method === 'POST') {
+        try {
+          await streamDeckDriver.testStreamDeck();
+          return jsonResponse({ success: true });
+        } catch (error) {
+          console.error('Failed to test StreamDeck:', error);
+          return jsonResponse({ error: 'Failed to test StreamDeck' }, 500);
+        }
+      }
+    }
+
+    if (path === '/api/v1/devices/streamdeck/update-buttons') {
+      if (method === 'POST') {
+        try {
+          const body = await req.json();
+          const { buttonStates } = body;
+
+          console.log('🎛️ Received button states for update:', buttonStates);
+
+          await streamDeckDriver.updateButtons(buttonStates);
+          return jsonResponse({ success: true });
+        } catch (error) {
+          console.error('Failed to update StreamDeck buttons:', error);
+          return jsonResponse({ error: 'Failed to update StreamDeck buttons' }, 500);
         }
       }
     }

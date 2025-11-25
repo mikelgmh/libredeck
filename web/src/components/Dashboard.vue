@@ -694,6 +694,9 @@ const createButton = async (position: number, label: string, actions: any[]) => 
     
     // Add to current buttons array
     currentButtons.value.push(newButton)
+
+    // Update StreamDeck buttons
+    updateStreamDeckButtons()
   } catch (error) {
     console.error('Failed to create button:', error)
   }
@@ -711,14 +714,33 @@ const updateButtonData = async (position: number, data: any) => {
     
     // Update local data
     button.data = data
+
+    // Update StreamDeck buttons
+    updateStreamDeckButtons()
   } catch (error) {
     console.error('Failed to update button:', error)
   }
 }
 
-const updateGrid = () => {
-  // Grid size changed, could trigger layout update
-  console.log(`Grid updated to ${gridCols.value}x${gridRows.value}`)
+const updateStreamDeckButtons = async () => {
+  try {
+    // Calcular qué posiciones tienen botones configurados
+    const buttonStates = [];
+    const totalButtons = gridCols.value * gridRows.value;
+    
+    for (let i = 0; i < totalButtons; i++) {
+      const button = getButton(i);
+      buttonStates.push(!!button && !!button.data);
+    }
+
+    // Enviar al daemon
+    await apiRequest('/devices/streamdeck/update-buttons', {
+      method: 'POST',
+      body: JSON.stringify({ buttonStates })
+    });
+  } catch (error) {
+    console.error('Failed to update StreamDeck buttons:', error);
+  }
 }
 
 const loadProfile = async () => {
@@ -745,6 +767,9 @@ const loadProfile = async () => {
       
       // Start dynamic updates for PC Vitals buttons
       startDynamicUpdates()
+
+      // Update StreamDeck buttons
+      updateStreamDeckButtons()
     } else {
       // Create default page
       const newPage = await apiRequest('/pages', {
@@ -773,6 +798,9 @@ const clearAllButtons = async () => {
       await apiRequest(`/buttons/${button.id}`, { method: 'DELETE' })
     }
     currentButtons.value = []
+
+    // Update StreamDeck buttons
+    updateStreamDeckButtons()
   } catch (error) {
     console.error('Failed to clear buttons:', error)
   }
@@ -891,10 +919,26 @@ const startDynamicUpdates = () => {
   })
 }
 
-const stopDynamicUpdates = () => {
-  updateIntervals.value.forEach(interval => clearInterval(interval))
-  updateIntervals.value.clear()
-  dynamicButtonValues.value.clear()
+const selectPage = async (page: any) => {
+  currentPage.value = page
+  
+  try {
+    const buttons = await apiRequest(`/buttons?pageId=${page.id}`)
+    currentButtons.value = buttons
+    
+    // Send WebSocket message to sync page selection across devices
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'page.select',
+        payload: { pageId: page.id }
+      }));
+    }
+    
+    // Update StreamDeck buttons for the new page
+    updateStreamDeckButtons()
+  } catch (error) {
+    console.error('Failed to load page buttons:', error)
+  }
 }
 
 // Lifecycle
